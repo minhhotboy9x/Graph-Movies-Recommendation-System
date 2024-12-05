@@ -1,0 +1,25 @@
+model:
+  name: "resnet18"
+  num_classes: 10
+
+training:
+  epochs: 20
+  batch_size: 32
+  optimizer:
+    type: torch.optim.SGD
+    params:
+      lr: 0.01
+      momentum: 0.9
+      weight_decay: 0.0001
+  scheduler:
+    type: torch.optim.lr_scheduler.CosineAnnealingLR
+    params:
+      T_max: ${training.epochs}
+      eta_min: 0.0001
+  amp: true
+
+data:
+  train_path: "./data/train"
+  val_path: "./data/val"
+  test_path: "./data/test"
+  num_workers: 4
