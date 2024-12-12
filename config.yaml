@@ -4,7 +4,6 @@ model:
 
 training:
   epochs: 20
-  batch_size: 32
   optimizer:
     type: torch.optim.SGD
     params:
@@ -19,7 +18,17 @@ training:
   amp: true
 
 data:
-  train_path: "./data/train"
-  val_path: "./data/val"
-  test_path: "./data/test"
-  num_workers: 4
+  type: dataloader.MyHeteroData
+  ratings_path: dataset/ml-latest-small/ratings.csv
+  movies_path: dataset/ml-latest-small/movies.csv
+  links_path: dataset/ml-latest-small/links.csv
+  val_ratio: 0.2
+  test_ratio: 0.1
+  batch_size: 64
+  num_neighbors: [20, 10]
+  
+
+model:
+  name: "HeteroGCN"
+  num_dim: 128
+  
