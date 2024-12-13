@@ -88,8 +88,9 @@ if __name__ == "__main__":
     print(data.get_metadata())
     model = HeteroLightGCN(data.get_metadata(), config['model'], exclude_node=['genre'])
     print(model)
-    # for i, batch in enumerate(data.trainloader):
+    for i, batch in enumerate(data.trainloader):
     #     x_dict = model(batch)
     #     print(x_dict['user'].shape)
     #     print(x_dict['movie'].shape)
-    #     break
+        print(batch)
+        break

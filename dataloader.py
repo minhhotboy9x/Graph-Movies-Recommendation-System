@@ -70,9 +70,9 @@ class MyHeteroData():
             genres = row['genres'].split('|')  # Tách genres
             for genre in genres:
                 genre_id = genre_to_id[genre]  # mappedID của genre
-                edges.append((movie_id, genre_id))  # Thêm cạnh
+                edges.append((genre_id, movie_id))  # Thêm cạnh
         edges_array = np.array(edges, dtype=np.int64)
-        self.data['movie', 'has_genre', 'genre'].edge_index = torch.from_numpy(edges_array.T).contiguous()
+        self.data['genre', 'of', 'movie'].edge_index = torch.from_numpy(edges_array.T).contiguous()
 
     def create_hetero_data(self):
         self.create_user_movie_edges()

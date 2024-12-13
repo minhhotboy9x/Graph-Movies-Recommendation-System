@@ -24,8 +24,8 @@ data:
   links_path: dataset/ml-latest-small/links.csv
   val_ratio: 0.2
   test_ratio: 0.1
-  batch_size: 64
-  num_neighbors: [20, 10]
+  batch_size: 32
+  num_neighbors: [200, 100]
   
 
 model:
