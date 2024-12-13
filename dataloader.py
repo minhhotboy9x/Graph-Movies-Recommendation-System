@@ -1,10 +1,11 @@
 import torch
+import numpy as np
 import pandas as pd
 import yaml
 
 from torch_geometric.data import HeteroData
 import torch_geometric.transforms as T
-from torch_geometric.loader import DataLoader, LinkNeighborLoader
+from torch_geometric.loader import DataLoader, LinkNeighborLoader, HGTLoader
 
 torch.random.manual_seed(0)
 
@@ -37,31 +38,48 @@ class MyHeteroData():
         self.ratings = pd.merge(self.ratings, self.links, on='movieId', how='left')
         self.ratings = self.ratings.drop(columns=['userId', 'movieId', 'timestamp', 'imdbId', 'tmdbId'])
 
-        self.genres = self.movies['genres'].str.get_dummies('|')
+        self.movies = pd.merge(self.movies, self.unique_movie_id, on='movieId', how='left')
     
-    def create_hetero_data(self):
+    def create_user_movie_edges(self):
         self.data["user"].node_id = torch.arange(len(self.unique_user_id))
         self.data["movie"].node_id = torch.arange(len(self.unique_movie_id))
 
         self.num_users = self.data["user"].num_nodes = len(self.unique_user_id)
         self.num_movies = self.data["movie"].num_nodes = len(self.unique_movie_id)
 
-        movie_genres = torch.from_numpy(self.genres.values).to(torch.float)
-        self.data["movie"].movie_genres = movie_genres
-        self.num_genre = self.data["movie"].movie_genres.size(1)
-
         ratings_user_id = torch.from_numpy(self.ratings['mappedID_x'].values).to(torch.long)
         ratings_movie_id = torch.from_numpy(self.ratings['mappedID_y'].values).to(torch.long)
         edge_index_user_to_movie = torch.stack([ratings_user_id, ratings_movie_id], dim=0)
-        self.data["user", "rates", "movie"].edge_index = edge_index_user_to_movie
+
+        self.data["user", "rates", "movie"].edge_index = edge_index_user_to_movie.contiguous()
         rating = torch.from_numpy(self.ratings['rating'].values).to(torch.float)
         self.data["user", "rates", "movie"].rating = rating
-
-        self.data = T.ToUndirected()(self.data)
-        del self.ratings, self.movies, self.links # free memory
         # print(self.data)
-        # print(self.data.num_nodes)
-        # print(self.data.edge_index_dict)
+
+    def create_movie_genre_edges(self):
+        all_genres = set(genre for genres in self.movies['genres'] for genre in genres.split('|'))
+
+        self.data["genre"].node_id = torch.arange(len(all_genres))
+        self.num_genres = self.data["genre"].num_nodes = len(all_genres)
+
+        genre_to_id = {genre: idx for idx, genre in enumerate(all_genres)}
+        
+        edges = []
+        for _, row in self.movies.iterrows():
+            movie_id = row['mappedID']  # mappedID của movie
+            genres = row['genres'].split('|')  # Tách genres
+            for genre in genres:
+                genre_id = genre_to_id[genre]  # mappedID của genre
+                edges.append((movie_id, genre_id))  # Thêm cạnh
+        edges_array = np.array(edges, dtype=np.int64)
+        self.data['movie', 'has_genre', 'genre'].edge_index = torch.from_numpy(edges_array.T).contiguous()
+
+    def create_hetero_data(self):
+        self.create_user_movie_edges()
+        self.create_movie_genre_edges()
+        # self.data = T.ToUndirected()(self.data)
+        # print(self.data)
+        del self.ratings, self.movies, self.links 
     
     def split_data(self):
         transform = T.RandomLinkSplit(
@@ -69,7 +87,7 @@ class MyHeteroData():
                     num_test=self.data_config["test_ratio"],
                     add_negative_train_samples=False,
                     edge_types=("user", "rates", "movie"),
-                    rev_edge_types=("movie", "rev_rates", "user"),
+                    # rev_edge_types=("movie", "rev_rates", "user"),
                 )
         self.train_data, self.val_data, self.test_data = transform(self.data)
         # print(self.train_data)
@@ -83,7 +101,7 @@ class MyHeteroData():
             batch_size = batch_size,
             shuffle = True,
             edge_label_index = ("user", "rates", "movie"), 
-            edge_label = self.train_data["user", "rates", "movie"].edge_label,  
+            edge_label = self.train_data["user", "rates", "movie"].edge_label,
             num_neighbors = self.data_config['num_neighbors'],  
         )
         self.valloader = LinkNeighborLoader(
@@ -102,16 +120,27 @@ class MyHeteroData():
             edge_label = self.test_data["user", "rates", "movie"].edge_label,  
             num_neighbors = self.data_config['num_neighbors'],  
         )
+    
+    def get_metadata(self):
+        meta_tmp = self.data.metadata()
+        meta_data = [{}, meta_tmp[1]]
+        for key in meta_tmp[0]:
+            meta_data[0][key] = self.data[key].num_nodes
+        return meta_data
 
     def load_batches(self):
         for i, batch in enumerate(self.trainloader):
             # print(f"Batch {i}:")
+            print(batch)
             # print(batch["user", "rates", "movie"].edge_index)
             # print(batch["user", "rates", "movie"].edge_label_index)
-            # print(batch["user"].node_id)
-            print(batch.edge_index_dict[('user', 'rates', 'movie')].shape)
-
-            break  # chỉ xem thử batch đầu tiên
+            # print(batch["user"].node_id.shape)
+            # print(batch["movie"].node_id.shape)
+            # print(batch["genre"].node_id.shape)
+            # print(batch['movie', 'has_genre', 'genre'])
+            # print(batch['user', 'rates', 'movie'].rating.shape)
+            if i==0:
+                break  # chỉ xem thử batch đầu tiên
 
 if __name__ == "__main__":
     # genres = ['Action', 'Adventure', 'Animation', 'Children', 'Comedy', 'Crime',
@@ -128,3 +157,4 @@ if __name__ == "__main__":
     data.split_data()
     data.create_dataloader()
     data.load_batches()
+    # data.get_metadata()

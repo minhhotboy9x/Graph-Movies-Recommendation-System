@@ -29,6 +29,6 @@ data:
   
 
 model:
-  name: "HeteroGCN"
+  name: "HeteroLightGCN"
   num_dim: 128
   

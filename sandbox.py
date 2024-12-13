@@ -40,7 +40,9 @@ class BipartiteLightGCN(MessagePassing):
         
         # Normalize the messages with respect to both sets
         norm = norm_x * norm_y
-        return self.propagate(edge_index, size=(x.size(0), y.size(0)), x=(x, y), norm=norm)
+        x2y = self.propagate(edge_index, size=(x.size(0), y.size(0)), x=(x, y), norm=norm)
+        y2x = self.propagate(edge_index.flip(0), size=(y.size(0), x.size(0)), x=(y, x), norm=norm)
+        return y2x, x2y
 
     def message(self, x_j, norm):
         return norm.view(-1, 1) * x_j  # Apply normalization to the embeddings
@@ -63,7 +65,7 @@ index = torch.stack([row, col], dim=0)
 print(f'x shape: {x.shape}')
 print(f'y shape: {y.shape}')
 out = conv(x, y, index)
-print(out.size())
+
 print(out)
 
 # conv_dict = {

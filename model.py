@@ -30,7 +30,9 @@ class BipartiteLightGCN(nn.MessagePassing):
         
         # Normalize the messages with respect to both sets
         norm = norm_x * norm_y
-        return self.propagate(edge_index, size=(x.size(0), y.size(0)), x=(x, y), norm=norm)
+        x2y = self.propagate(edge_index, size=(x.size(0), y.size(0)), x=(x, y), norm=norm)
+        y2x = self.propagate(edge_index.flip(0), size=(y.size(0), x.size(0)), x=(y, x), norm=norm)
+        return y2x, x2y
 
     def message(self, x_j, norm):
         return norm.view(-1, 1) * x_j  # Apply normalization to the embeddings
@@ -53,30 +55,25 @@ class GNN(torch.nn.Module):
         x = self.conv2(x, edge_index)
         return x
 
-class HeteroGCN(torch.nn.Module):
-    def __init__(self, num_users, num_movies, num_genre, hetero_metadata=None, model_config=None):
+class HeteroLightGCN(torch.nn.Module):
+    def __init__(self, hetero_metadata=None, model_config=None, exclude_node = []):
         super().__init__()
-        self.user_emb = torch.nn.Embedding(num_users, model_config['num_dim'])
+        self.node_types = hetero_metadata[0]
+        self.edge_types = hetero_metadata[1]
+        self.embs = torch.nn.ModuleDict(
+            {
+                key: torch.nn.Embedding(self.node_types[key], model_config['num_dim']) 
+                    for key in self.node_types if key not in exclude_node
+            }
+        )
 
-        self.movie_emb = torch.nn.Embedding(num_movies, model_config['num_dim'])
-        self.movie_proj = nn.Linear(model_config['num_dim'] + num_genre, model_config['num_dim'])
-
-        self.gnn = GNN(model_config['num_dim'])
-        self.gnn = nn.to_hetero(self.gnn, metadata=hetero_metadata)
+        self.lightgcn = nn.HeteroConv({
+                key: BipartiteLightGCN() for key in self.edge_types
+            }, aggr='sum')
 
     def forward(self, data: MyHeteroData):
-        user_feature = self.user_emb(data['user'].node_id)
-
-        movie_feature = torch.cat([self.movie_emb(data['movie'].node_id), data['movie'].movie_genres], dim=1)
-        movie_feature = self.movie_proj(movie_feature)
-        
-        x_dict = {'user': user_feature, 'movie': movie_feature}
-        edge_index_dict = data.edge_index_dict
-        print(user_feature.shape)
-        print(edge_index_dict[('user', 'rates', 'movie')].shape)
-        x_dict = self.gnn(x_dict, edge_index_dict)
-
-        return x_dict
+    
+        return
 
 if __name__ == "__main__":
     with open('config.yaml') as f:
@@ -88,10 +85,11 @@ if __name__ == "__main__":
     data.create_hetero_data()
     data.split_data()
     data.create_dataloader()
-    print(data.data.metadata())
-    model = HeteroGCN(data.num_users, data.num_movies, data.num_genre, data.data.metadata(), config['model'])
-    for i, batch in enumerate(data.trainloader):
-        x_dict = model(batch)
-        print(x_dict['user'].shape)
-        print(x_dict['movie'].shape)
-        break
+    print(data.get_metadata())
+    model = HeteroLightGCN(data.get_metadata(), config['model'], exclude_node=['genre'])
+    print(model)
+    # for i, batch in enumerate(data.trainloader):
+    #     x_dict = model(batch)
+    #     print(x_dict['user'].shape)
+    #     print(x_dict['movie'].shape)
+    #     break
