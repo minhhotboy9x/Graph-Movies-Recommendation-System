@@ -49,11 +49,12 @@ class MyHeteroData():
 
         ratings_user_id = torch.from_numpy(self.ratings['mappedID_x'].values).to(torch.long)
         ratings_movie_id = torch.from_numpy(self.ratings['mappedID_y'].values).to(torch.long)
-        edge_index_user_to_movie = torch.stack([ratings_user_id, ratings_movie_id], dim=0)
+        # edge_index_user_to_movie = torch.stack([ratings_user_id, ratings_movie_id], dim=0)
+        edge_index_user_to_movie = torch.stack([ratings_movie_id, ratings_user_id], dim=0)
 
-        self.data["user", "rates", "movie"].edge_index = edge_index_user_to_movie.contiguous()
+        self.data["movie", "ratedby", "user"].edge_index = edge_index_user_to_movie.contiguous()
         rating = torch.from_numpy(self.ratings['rating'].values).to(torch.float)
-        self.data["user", "rates", "movie"].rating = rating
+        self.data["movie", "ratedby", "user"].rating = rating
         # print(self.data)
 
     def create_movie_genre_edges(self):
@@ -86,7 +87,7 @@ class MyHeteroData():
                     num_val=self.data_config["val_ratio"],
                     num_test=self.data_config["test_ratio"],
                     add_negative_train_samples=False,
-                    edge_types=("user", "rates", "movie"),
+                    edge_types=("movie", "ratedby", "user"),
                     # rev_edge_types=("movie", "rev_rates", "user"),
                 )
         self.train_data, self.val_data, self.test_data = transform(self.data)
@@ -100,24 +101,24 @@ class MyHeteroData():
             self.train_data,
             batch_size = batch_size,
             shuffle = True,
-            edge_label_index = ("user", "rates", "movie"), 
-            edge_label = self.train_data["user", "rates", "movie"].edge_label,
+            edge_label_index = ("movie", "ratedby", "user"), 
+            edge_label = self.train_data["movie", "ratedby", "user"].edge_label,
             num_neighbors = self.data_config['num_neighbors'],  
         )
         self.valloader = LinkNeighborLoader(
             self.val_data,
             batch_size = batch_size,
             shuffle = False,
-            edge_label_index = ("user", "rates", "movie"), 
-            edge_label = self.val_data["user", "rates", "movie"].edge_label,  
+            edge_label_index = ("movie", "ratedby", "user"), 
+            edge_label = self.val_data["movie", "ratedby", "user"].edge_label,  
             num_neighbors = self.data_config['num_neighbors'],  
         )
         self.testloader = LinkNeighborLoader(
             self.test_data,
             batch_size = batch_size,
             shuffle = False,
-            edge_label_index = ("user", "rates", "movie"), 
-            edge_label = self.test_data["user", "rates", "movie"].edge_label,  
+            edge_label_index = ("movie", "ratedby", "user"), 
+            edge_label = self.test_data["movie", "ratedby", "user"].edge_label,  
             num_neighbors = self.data_config['num_neighbors'],  
         )
     
@@ -132,8 +133,8 @@ class MyHeteroData():
         for i, batch in enumerate(self.trainloader):
             # print(f"Batch {i}:")
             print(batch)
-            # print(batch["user", "rates", "movie"].edge_index)
-            # print(batch["user", "rates", "movie"].edge_label_index)
+            # print(batch["movie", "ratedby", "user"].edge_index)
+            # print(batch["movie", "ratedby", "user"].edge_label_index)
             # print(batch["user"].node_id.shape)
             # print(batch["movie"].node_id.shape)
             # print(batch["genre"].node_id.shape)
