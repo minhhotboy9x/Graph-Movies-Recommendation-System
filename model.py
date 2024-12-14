@@ -2,7 +2,6 @@ import torch
 import yaml
 import torch.nn.functional as F
 import torch_geometric.nn as nn
-import torch_geometric.transforms as T
 from torch_geometric.data import HeteroData
 from torch_geometric.utils import degree
 from dataloader import MyHeteroData
@@ -44,31 +43,16 @@ class BipartiteLightGCN(nn.MessagePassing):
         # and any argument which was initially passed to propagate()
         return aggr_out
 
-class GNN(torch.nn.Module):
-    def __init__(self, hidden_channels):
-        super().__init__()
-
-        self.conv1 = nn.SAGEConv(hidden_channels, hidden_channels)
-        self.conv2 = nn.SAGEConv(hidden_channels, hidden_channels)
-
-    def forward(self, x, edge_index):
-        x = self.conv1(x, edge_index)
-        x = F.relu(x)
-        x = self.conv2(x, edge_index)
-        return x
-
 class HeteroLightGCN(torch.nn.Module):
-    def __init__(self, hetero_metadata=None, model_config=None, exclude_node = []):
+    def __init__(self, hetero_metadata=None, model_config=None):
         super().__init__()
         self.node_types = hetero_metadata[0]
         self.edge_types = hetero_metadata[1]
-        self.exclude_node = exclude_node
-        self.embs = torch.nn.ModuleDict(
-            {
+        self.exclude_node = model_config['exclude_node']
+        self.embs = torch.nn.ModuleDict({
                 key: torch.nn.Embedding(self.node_types[key], model_config['num_dim']) 
-                    for key in self.node_types if key not in exclude_node
-            }
-        )
+                    for key in self.node_types if key not in self.exclude_node
+            })
 
         self.lightgcn = BipartiteLightGCN()
 
@@ -82,12 +66,10 @@ class HeteroLightGCN(torch.nn.Module):
                 for key in data.edge_types 
                     if key[0] not in self.exclude_node and key[2] not in self.exclude_node
         }
-
         res_dict = {
             key: x_dict[key]
                 for key in x_dict.keys()
         }
-
         count_dict = {
             key: 1
                 for key in x_dict.keys()
@@ -120,13 +102,13 @@ if __name__ == "__main__":
     data.split_data()
     data.create_dataloader()
     print(data.get_metadata())
-    model = HeteroLightGCN(data.get_metadata(), config['model'], exclude_node=['genre'])
+    model = HeteroLightGCN(data.get_metadata(), config['model'])
     print(model)
-    for i, batch in enumerate(data.trainloader):
-        print(f"Batch {i}: {batch}")
-        x_dict = model(batch)
-        for key in x_dict.keys():
-            print(f"{key}: {x_dict[key]}")
+    # for i, batch in enumerate(data.trainloader):
+    #     print(f"Batch {i}: {batch}")
+    #     x_dict = model(batch)
+    #     for key in x_dict.keys():
+    #         print(f"{key}: {x_dict[key]}")
         # print(x_dict['movie'].shape)
         # print(batch)
-        break
+        # break

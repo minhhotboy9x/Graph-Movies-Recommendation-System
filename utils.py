@@ -21,7 +21,7 @@ def import_object(path):
 
 # Get the optimizer, scheduler, and scaler
 def create_optimizer_scheduler_scaler(config_yaml, model):
-    training_config = config_yaml["training"]
+    training_config = config_yaml["train"]
     # Optimizer
     optimizer_class = import_object(training_config["optimizer"]["type"])
     optimizer_params = training_config["optimizer"]["params"]

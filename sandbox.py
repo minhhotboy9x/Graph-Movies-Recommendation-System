@@ -67,28 +67,3 @@ conv = BipartiteLightGCN()
 # out = conv(x, y, index)
 
 # print(out)
-
-# Tạo x_dict với một tensor có gradient
-x_dict = {
-    'a': torch.randn(3, requires_grad=True),
-    'b': torch.randn(3, requires_grad=True)
-}
-
-# Sao chép trực tiếp x_dict vào res_dict
-res_dict = {
-    key: x_dict[key]
-    for key in x_dict.keys()
-}
-
-# In ra trước khi thay đổi
-print("Before changing res_dict:")
-print("x_dict:", x_dict)
-print("res_dict:", res_dict)
-
-# Thay đổi giá trị trong res_dict
-res_dict['a'] = res_dict['a'] + 1
-
-# In ra sau khi thay đổi
-print("\nAfter changing res_dict:")
-print("x_dict:", x_dict)  # x_dict cũng bị thay đổi
-print("res_dict:", res_dict)  # res_dict đã thay đổi

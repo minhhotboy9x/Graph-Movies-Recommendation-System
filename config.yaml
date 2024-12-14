@@ -1,9 +1,5 @@
-model:
-  name: "resnet18"
-  num_classes: 10
-
-training:
-  epochs: 20
+train:
+  epochs: &epochs 20
   optimizer:
     type: torch.optim.SGD
     params:
@@ -13,7 +9,7 @@ training:
   scheduler:
     type: torch.optim.lr_scheduler.CosineAnnealingLR
     params:
-      T_max: ${training.epochs}
+      T_max: *epochs
       eta_min: 0.0001
   amp: true
 
@@ -29,6 +25,6 @@ data:
   
 
 model:
-  name: "HeteroLightGCN"
+  type: "HeteroLightGCN"
   num_dim: 128
-  
+  exclude_node: ['genre']

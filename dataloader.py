@@ -5,11 +5,9 @@ import yaml
 
 from torch_geometric.data import HeteroData
 import torch_geometric.transforms as T
-from torch_geometric.loader import DataLoader, LinkNeighborLoader, HGTLoader
+from torch_geometric.loader import LinkNeighborLoader
 
-torch.random.manual_seed(0)
 
-# Lưu ý, các timestamp trong 
 class MyHeteroData():
     def __init__(self, data_config):
         super().__init__()
