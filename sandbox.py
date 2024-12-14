@@ -56,39 +56,39 @@ conv = BipartiteLightGCN()
 
 # x = torch.Tensor([[1, 1], [2, 2], [3, 3]])
 # y = torch.Tensor([[4, 4], [5, 5], [6, 6], [7, 7]])
-x = torch.Tensor([[1, 1], [1, 1], [1, 1]])
-y = torch.Tensor([[1, 1], [1, 1], [1, 1], [1, 1]])
-row = torch.tensor([0, 1, 2, 0, 1, 2])
-col = torch.tensor([0, 0, 0, 1, 1, 3])
-index = torch.stack([row, col], dim=0)
+# x = torch.Tensor([[1, 1], [1, 1], [1, 1]])
+# y = torch.Tensor([[1, 1], [1, 1], [1, 1], [1, 1]])
+# row = torch.tensor([0, 1, 2, 0, 1, 2])
+# col = torch.tensor([0, 0, 0, 1, 1, 3])
+# index = torch.stack([row, col], dim=0)
 
-print(f'x shape: {x.shape}')
-print(f'y shape: {y.shape}')
-out = conv(x, y, index)
+# print(f'x shape: {x.shape}')
+# print(f'y shape: {y.shape}')
+# out = conv(x, y, index)
 
-print(out)
+# print(out)
 
-# conv_dict = {
-#     ('user', 'rate', 'movie'): LightGCNConv(),
-#     ('movie', 'belong', 'genres'): LightGCNConv(),
-# }
+# Tạo x_dict với một tensor có gradient
+x_dict = {
+    'a': torch.randn(3, requires_grad=True),
+    'b': torch.randn(3, requires_grad=True)
+}
 
-# # Khởi tạo HeteroConv
-# hetero_conv = HeteroConv(conv_dict, aggr='sum')  # Aggregation across edge types
+# Sao chép trực tiếp x_dict vào res_dict
+res_dict = {
+    key: x_dict[key]
+    for key in x_dict.keys()
+}
 
-# data = HeteroData()
+# In ra trước khi thay đổi
+print("Before changing res_dict:")
+print("x_dict:", x_dict)
+print("res_dict:", res_dict)
 
-# # Node features
-# data['user'].x = torch.randn(100, 64)  # 100 users, 64-dimensional features
-# data['movie'].x = torch.randn(50, 64)  # 50 movies, 64-dimensional features
-# data['genres'].x = torch.randn(10, 64)  # 10 genres, 64-dimensional features
+# Thay đổi giá trị trong res_dict
+res_dict['a'] = res_dict['a'] + 1
 
-# # Edge indices
-# data['user', 'rate', 'movie'].edge_index = torch.randint(0, 100, (2, 300))  # 300 edges
-# data['movie', 'belong', 'genres'].edge_index = torch.randint(0, 50, (2, 100))  # 100 edges
-
-# output = hetero_conv(data.x_dict, data.edge_index_dict)
-
-# # In output embeddings
-# for node_type, node_emb in output.items():
-#     print(f"{node_type} embeddings: {node_emb.shape}")
+# In ra sau khi thay đổi
+print("\nAfter changing res_dict:")
+print("x_dict:", x_dict)  # x_dict cũng bị thay đổi
+print("res_dict:", res_dict)  # res_dict đã thay đổi

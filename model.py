@@ -3,6 +3,7 @@ import yaml
 import torch.nn.functional as F
 import torch_geometric.nn as nn
 import torch_geometric.transforms as T
+from torch_geometric.data import HeteroData
 from torch_geometric.utils import degree
 from dataloader import MyHeteroData
 
@@ -10,7 +11,8 @@ class BipartiteLightGCN(nn.MessagePassing):
     def __init__(self, **kwargs):
         super().__init__(aggr='add')  # Aggregates neighboring nodes with 'add' method
 
-    def forward(self, x, y, edge_index):
+    def forward(self, nodes: tuple[torch.Tensor, torch.Tensor], edge_index: torch.Tensor):
+        x, y = nodes
         from_, to_ = edge_index
         # Degree calculation for both sets X and Y
         deg_x = degree(from_, x.size(0), dtype=x.dtype)  # Degree for X
@@ -60,6 +62,7 @@ class HeteroLightGCN(torch.nn.Module):
         super().__init__()
         self.node_types = hetero_metadata[0]
         self.edge_types = hetero_metadata[1]
+        self.exclude_node = exclude_node
         self.embs = torch.nn.ModuleDict(
             {
                 key: torch.nn.Embedding(self.node_types[key], model_config['num_dim']) 
@@ -67,13 +70,44 @@ class HeteroLightGCN(torch.nn.Module):
             }
         )
 
-        self.lightgcn = nn.HeteroConv({
-                key: BipartiteLightGCN() for key in self.edge_types
-            }, aggr='sum')
+        self.lightgcn = BipartiteLightGCN()
 
-    def forward(self, data: MyHeteroData):
-    
-        return
+    def forward(self, data: HeteroData):
+        x_dict = {
+            key: self.embs[key](data[key].node_id) 
+                for key in data.node_types if key not in self.exclude_node
+        }
+        edge_dict = {
+            key: data[key].edge_index 
+                for key in data.edge_types 
+                    if key[0] not in self.exclude_node and key[2] not in self.exclude_node
+        }
+
+        res_dict = {
+            key: x_dict[key]
+                for key in x_dict.keys()
+        }
+
+        count_dict = {
+            key: 1
+                for key in x_dict.keys()
+        }
+
+        for i, (key, edge_index) in enumerate(edge_dict.items()):
+            x = res_dict[key[0]]
+            y = res_dict[key[2]]
+
+            x, y = self.lightgcn(nodes=(x, y), edge_index=edge_index)
+
+            res_dict[key[0]] = res_dict[key[0]] + x
+            res_dict[key[2]] = res_dict[key[2]] + y
+            count_dict[key[0]] += 1
+            count_dict[key[2]] += 1
+
+        for key in res_dict.keys():
+            res_dict[key] = res_dict[key] / count_dict[key]
+
+        return res_dict
 
 if __name__ == "__main__":
     with open('config.yaml') as f:
@@ -89,8 +123,10 @@ if __name__ == "__main__":
     model = HeteroLightGCN(data.get_metadata(), config['model'], exclude_node=['genre'])
     print(model)
     for i, batch in enumerate(data.trainloader):
-    #     x_dict = model(batch)
-    #     print(x_dict['user'].shape)
-    #     print(x_dict['movie'].shape)
-        print(batch)
+        print(f"Batch {i}: {batch}")
+        x_dict = model(batch)
+        for key in x_dict.keys():
+            print(f"{key}: {x_dict[key]}")
+        # print(x_dict['movie'].shape)
+        # print(batch)
         break
