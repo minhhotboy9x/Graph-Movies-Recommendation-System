@@ -3,6 +3,7 @@ import numpy as np
 import pandas as pd
 import yaml
 
+import utils
 from torch_geometric.data import HeteroData
 import torch_geometric.transforms as T
 from torch_geometric.loader import LinkNeighborLoader
@@ -77,7 +78,6 @@ class MyHeteroData():
         self.create_user_movie_edges()
         self.create_movie_genre_edges()
         # self.data = T.ToUndirected()(self.data)
-        # print(self.data)
         del self.ratings, self.movies, self.links 
     
     def split_data(self):
@@ -86,28 +86,28 @@ class MyHeteroData():
                     num_test=self.data_config["test_ratio"],
                     add_negative_train_samples=False,
                     edge_types=("movie", "ratedby", "user"),
+                    disjoint_train_ratio=0.2
                     # rev_edge_types=("movie", "rev_rates", "user"),
                 )
         self.train_data, self.val_data, self.test_data = transform(self.data)
-        # print(self.train_data)
-        # print(self.val_data)
-        # print(self.test_data)
-    
+
     def create_dataloader(self):
         batch_size = self.data_config['batch_size']
         self.trainloader = LinkNeighborLoader(
             self.train_data,
             batch_size = batch_size,
             shuffle = True,
-            edge_label_index = ("movie", "ratedby", "user"), 
+            edge_label_index = (("movie", "ratedby", "user"), 
+                                self.train_data["movie", "ratedby", "user"].edge_label_index), 
             edge_label = self.train_data["movie", "ratedby", "user"].edge_label,
-            num_neighbors = self.data_config['num_neighbors'],  
+            num_neighbors = self.data_config['num_neighbors'], 
         )
         self.valloader = LinkNeighborLoader(
             self.val_data,
             batch_size = batch_size,
             shuffle = False,
-            edge_label_index = ("movie", "ratedby", "user"), 
+            edge_label_index = (("movie", "ratedby", "user"), 
+                                self.val_data["movie", "ratedby", "user"].edge_label_index), 
             edge_label = self.val_data["movie", "ratedby", "user"].edge_label,  
             num_neighbors = self.data_config['num_neighbors'],  
         )
@@ -115,32 +115,31 @@ class MyHeteroData():
             self.test_data,
             batch_size = batch_size,
             shuffle = False,
-            edge_label_index = ("movie", "ratedby", "user"), 
+            edge_label_index = (("movie", "ratedby", "user"), 
+                                self.test_data["movie", "ratedby", "user"].edge_label_index), 
             edge_label = self.test_data["movie", "ratedby", "user"].edge_label,  
             num_neighbors = self.data_config['num_neighbors'],  
         )
     
+    def load_batches(self):
+        for i, batch in enumerate(self.trainloader):
+            print('-----------------')
+            # print(batch)
+            edge = batch["movie", "ratedby", "user"]
+            edge_index, unique_edges, edge_label_index = utils.get_unlabel_label_edge(edge)
+            print(edge_index.shape)
+            print(unique_edges.shape)
+            print(edge_label_index.shape)
+            if i==5:
+                break  
+
     def get_metadata(self):
         meta_tmp = self.data.metadata()
         meta_data = [{}, meta_tmp[1]]
         for key in meta_tmp[0]:
             meta_data[0][key] = self.data[key].num_nodes
         return meta_data
-
-    def load_batches(self):
-        for i, batch in enumerate(self.trainloader):
-            # print(f"Batch {i}:")
-            print(batch)
-            # print(batch["movie", "ratedby", "user"].edge_index)
-            # print(batch["movie", "ratedby", "user"].edge_label_index)
-            # print(batch["user"].node_id.shape)
-            # print(batch["movie"].node_id.shape)
-            # print(batch["genre"].node_id.shape)
-            # print(batch['movie', 'has_genre', 'genre'])
-            # print(batch['user', 'rates', 'movie'].rating.shape)
-            if i==0:
-                break  # chỉ xem thử batch đầu tiên
-
+    
 if __name__ == "__main__":
     # genres = ['Action', 'Adventure', 'Animation', 'Children', 'Comedy', 'Crime',
     #        'Documentary', 'Drama', 'Fantasy', 'Film-Noir', 'Horror, Musical',

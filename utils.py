@@ -43,7 +43,15 @@ def create_optimizer_scheduler_scaler(config_yaml, model):
     
     return optimizer, scheduler, scaler
 
+def get_unlabel_label_edge(edge):
+    edge_index = edge.edge_index
+    edge_label_index = edge.edge_label_index
+    mask = torch.ones(edge_index.size(1), dtype=bool)
+    for i in range(edge_label_index.size(1)):
+        mask &= ~((edge_index[0] == edge_label_index[0, i]) & (edge_index[1] == edge_label_index[1, i]))
 
+    unique_edges = edge_index[:, mask]
+    return edge_index, unique_edges, edge_label_index
 
 if __name__ == "__main__":
     config_yaml = load_config("config.yaml")

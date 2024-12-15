@@ -4,6 +4,7 @@ import torch.nn.functional as F
 import torch_geometric.nn as nn
 from torch_geometric.data import HeteroData
 from torch_geometric.utils import degree
+import utils
 from dataloader import MyHeteroData
 
 class BipartiteLightGCN(nn.MessagePassing):
@@ -42,6 +43,14 @@ class BipartiteLightGCN(nn.MessagePassing):
         # Takes in the output of aggregation as first argument 
         # and any argument which was initially passed to propagate()
         return aggr_out
+
+class Classifier(torch.nn.Module):
+    def forward(self, x_user: torch.Tensor, x_movie: torch.Tensor, edge_label_index: torch.Tensor) -> torch.Tensor:
+        edge_feat_user = x_user[edge_label_index[0]]
+        edge_feat_movie = x_movie[edge_label_index[1]]
+
+        # Apply dot-product to get a prediction per supervision edge:
+        return (edge_feat_user * edge_feat_movie).sum(dim=-1)
 
 class HeteroLightGCN(torch.nn.Module):
     def __init__(self, hetero_metadata=None, model_config=None):
@@ -104,11 +113,12 @@ if __name__ == "__main__":
     print(data.get_metadata())
     model = HeteroLightGCN(data.get_metadata(), config['model'])
     print(model)
-    # for i, batch in enumerate(data.trainloader):
-    #     print(f"Batch {i}: {batch}")
-    #     x_dict = model(batch)
-    #     for key in x_dict.keys():
-    #         print(f"{key}: {x_dict[key]}")
-        # print(x_dict['movie'].shape)
-        # print(batch)
-        # break
+    for i, batch in enumerate(data.trainloader):
+        # print(f"Batch {i}: {batch}")
+        edge = batch["movie", "ratedby", "user"]
+        edge_index, unique_edges, edge_label_index = utils.get_unlabel_label_edge(edge)
+        print(edge_index.shape)
+        print(unique_edges.shape)
+        print(edge_label_index.shape)
+        print('-----------------')
+        break

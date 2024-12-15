@@ -54,14 +54,21 @@ class BipartiteLightGCN(MessagePassing):
     
 conv = BipartiteLightGCN()
 
-# x = torch.Tensor([[1, 1], [2, 2], [3, 3]])
-# y = torch.Tensor([[4, 4], [5, 5], [6, 6], [7, 7]])
-# x = torch.Tensor([[1, 1], [1, 1], [1, 1]])
-# y = torch.Tensor([[1, 1], [1, 1], [1, 1], [1, 1]])
-# row = torch.tensor([0, 1, 2, 0, 1, 2])
-# col = torch.tensor([0, 0, 0, 1, 1, 3])
-# index = torch.stack([row, col], dim=0)
+edge_index = torch.tensor([[0, 1, 2, 3, 4, 5],
+                           [1, 2, 3, 4, 5, 6]])  # Cạnh thực tế
+edge_label_index = torch.tensor([[0, 1, 2],
+                                 [1, 2, 3]])
 
+mask = torch.ones(edge_index.size(1), dtype=bool)
+for i in range(edge_label_index.size(1)):
+    mask &= ~((edge_index[0] == edge_label_index[0, i]) & (edge_index[1] == edge_label_index[1, i]))
+
+unique_edges = edge_index[:, mask]
+
+print(edge_index.shape)
+print(edge_label_index.shape)
+print(unique_edges.shape)
+print(unique_edges)
 # print(f'x shape: {x.shape}')
 # print(f'y shape: {y.shape}')
 # out = conv(x, y, index)
