@@ -55,9 +55,11 @@ class Classifier(torch.nn.Module):
 class HeteroLightGCN(torch.nn.Module):
     def __init__(self, hetero_metadata=None, model_config=None):
         super().__init__()
+        self.model_config = model_config
         self.node_types = hetero_metadata[0]
         self.edge_types = hetero_metadata[1]
         self.exclude_node = model_config['exclude_node']
+
         self.embs = torch.nn.ModuleDict({
                 key: torch.nn.Embedding(self.node_types[key], model_config['num_dim']) 
                     for key in self.node_types if key not in self.exclude_node
@@ -114,11 +116,6 @@ if __name__ == "__main__":
     model = HeteroLightGCN(data.get_metadata(), config['model'])
     print(model)
     for i, batch in enumerate(data.trainloader):
-        # print(f"Batch {i}: {batch}")
-        edge = batch["movie", "ratedby", "user"]
-        edge_index, unique_edges, edge_label_index = utils.get_unlabel_label_edge(edge)
-        print(edge_index.shape)
-        print(unique_edges.shape)
-        print(edge_label_index.shape)
+        print(f"Batch {i}: {batch}")
         print('-----------------')
         break

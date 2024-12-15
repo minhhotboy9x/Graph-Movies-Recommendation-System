@@ -1,6 +1,8 @@
 import os
 import torch
 import yaml
+import random
+import numpy as np
 import importlib
 
 
@@ -43,15 +45,16 @@ def create_optimizer_scheduler_scaler(config_yaml, model):
     
     return optimizer, scheduler, scaler
 
-def get_unlabel_label_edge(edge):
-    edge_index = edge.edge_index
-    edge_label_index = edge.edge_label_index
-    mask = torch.ones(edge_index.size(1), dtype=bool)
-    for i in range(edge_label_index.size(1)):
-        mask &= ~((edge_index[0] == edge_label_index[0, i]) & (edge_index[1] == edge_label_index[1, i]))
+def set_seed(seed = 0):
+    torch.manual_seed(seed)
+    random.seed(seed)
+    np.random.seed(seed)
+    if torch.cuda.is_available():
+        torch.cuda.manual_seed_all(seed)
+    torch.backends.cudnn.deterministic = True
+    os.environ["CUBLAS_WORKSPACE_CONFIG"] = ":4096:8"
+    os.environ["PYTHONHASHSEED"] = str(seed)
 
-    unique_edges = edge_index[:, mask]
-    return edge_index, unique_edges, edge_label_index
 
 if __name__ == "__main__":
     config_yaml = load_config("config.yaml")

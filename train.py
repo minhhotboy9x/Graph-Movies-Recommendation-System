@@ -6,10 +6,7 @@ from dataloader import MyHeteroData
 from model import HeteroLightGCN
 import utils
 
-torch.random.manual_seed(0)
-torch.cuda.manual_seed(0)
-torch.use_deterministic_algorithms(True)
-device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
+utils.set_seed(0)
 
 def load_myheterodata(data_config):
     dataset = MyHeteroData(data_config)
