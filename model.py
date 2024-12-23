@@ -7,6 +7,7 @@ from torch_geometric.utils import degree
 import utils
 from dataloader import MyHeteroData
 
+utils.set_seed(0)
 class BipartiteLightGCN(nn.MessagePassing):
     def __init__(self, **kwargs):
         super().__init__(aggr='add')  # Aggregates neighboring nodes with 'add' method
@@ -46,11 +47,10 @@ class BipartiteLightGCN(nn.MessagePassing):
 
 class Classifier(torch.nn.Module):
     def forward(self, x_user: torch.Tensor, x_movie: torch.Tensor, edge_label_index: torch.Tensor) -> torch.Tensor:
-        edge_feat_user = x_user[edge_label_index[0]]
-        edge_feat_movie = x_movie[edge_label_index[1]]
+        edge_feat_user = x_user[edge_label_index[1]]
+        edge_feat_movie = x_movie[edge_label_index[0]]
 
-        # Apply dot-product to get a prediction per supervision edge:
-        return (edge_feat_user * edge_feat_movie).sum(dim=-1)
+        return F.sigmoid((edge_feat_user * edge_feat_movie).sum(dim=-1))
 
 class HeteroLightGCN(torch.nn.Module):
     def __init__(self, hetero_metadata=None, model_config=None):
@@ -66,34 +66,40 @@ class HeteroLightGCN(torch.nn.Module):
             })
 
         self.lightgcn = BipartiteLightGCN()
+        self.classifier = Classifier()
 
     def forward(self, data: HeteroData):
         x_dict = {
             key: self.embs[key](data[key].node_id) 
                 for key in data.node_types if key not in self.exclude_node
         }
+
         edge_dict = {key: data[key].edge_index 
                         for key in data.edge_types 
                             if key[0] not in self.exclude_node and key[2] not in self.exclude_node}
+        
         res_dict = {key: x_dict[key]
                         for key in x_dict.keys()}
         count_dict = {key: 1 for key in x_dict.keys()}
 
-        for i, (key, edge_index) in enumerate(edge_dict.items()):
-            x = res_dict[key[0]]
-            y = res_dict[key[2]]
+        for _ in range(self.model_config['num_layers']):
+            for _, (key, edge_index) in enumerate(edge_dict.items()):
+                x = res_dict[key[0]]
+                y = res_dict[key[2]]
 
-            x, y = self.lightgcn(nodes=(x, y), edge_index=edge_index)
+                x, y = self.lightgcn(nodes=(x, y), edge_index=edge_index)
 
-            res_dict[key[0]] = res_dict[key[0]] + x
-            res_dict[key[2]] = res_dict[key[2]] + y
-            count_dict[key[0]] += 1
-            count_dict[key[2]] += 1
+                res_dict[key[0]] = res_dict[key[0]] + x
+                res_dict[key[2]] = res_dict[key[2]] + y
+                count_dict[key[0]] += 1
+                count_dict[key[2]] += 1
 
         for key in res_dict.keys():
             res_dict[key] = res_dict[key] / count_dict[key]
 
-        return res_dict
+        res = self.classifier(res_dict['user'], res_dict['movie'], data['movie', 'ratedby', 'user'].edge_label_index)
+
+        return res, res_dict
 
 if __name__ == "__main__":
     with open('config.yaml') as f:
@@ -108,7 +114,13 @@ if __name__ == "__main__":
     print(data.get_metadata())
     model = HeteroLightGCN(data.get_metadata(), config['model'])
     print(model)
+    total_params = sum(p.numel() for p in model.parameters())
+    trainable_params = sum(p.numel() for p in model.parameters() if p.requires_grad)
+
+    print(f'Total parameters: {total_params}')
+    print(f'Trainable parameters: {trainable_params}')
     for i, batch in enumerate(data.trainloader):
         print(f"Batch {i}: {batch}")
         print('-----------------')
+        res, res_dict = model(batch)
         break

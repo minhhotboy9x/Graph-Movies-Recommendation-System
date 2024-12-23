@@ -18,15 +18,16 @@ data:
   ratings_path: dataset/ml-latest-small/ratings.csv
   movies_path: dataset/ml-latest-small/movies.csv
   links_path: dataset/ml-latest-small/links.csv
-  products_path: dataset/ml-latest-small/links_product.csv
+  productions_path: dataset/ml-latest-small/links_production.csv
   pos_threshold: 3.5
   val_ratio: 0.2
   test_ratio: 0.1
   batch_size: 16
-  num_neighbors: [20]
+  num_neighbors: [40]
   
 
 model:
+  num_layers: 2
   type: "HeteroLightGCN"
   num_dim: 128
   exclude_node: ['genre']

@@ -2,12 +2,15 @@ import torch
 import numpy as np
 import pandas as pd
 import yaml
+import ast
 
 import utils
 from torch_geometric.data import HeteroData
 import torch_geometric.transforms as T
 from torch_geometric.loader import LinkNeighborLoader
+from sklearn.preprocessing import LabelEncoder
 
+utils.set_seed(0)
 
 class MyHeteroData():
     def __init__(self, data_config):
@@ -16,7 +19,7 @@ class MyHeteroData():
         self.ratings = pd.read_csv(data_config['ratings_path'])
         self.movies = pd.read_csv(data_config['movies_path'])
         self.links = pd.read_csv(data_config['links_path'])
-        self.production = pd.read_csv(data_config['production_path'])
+        self.production = pd.read_csv(data_config['productions_path'])
         self.data = HeteroData()
     
     def preprocess_df(self):
@@ -39,7 +42,10 @@ class MyHeteroData():
         self.ratings = self.ratings.drop(columns=['userId', 'movieId', 'timestamp', 'imdbId', 'tmdbId'])
 
         self.movies = pd.merge(self.movies, self.unique_movie_id, on='movieId', how='left')
-    
+
+        self.production = self.production.drop(columns=['imdbId', 'imdbId', 'tmdbId', 'true imdbId'])
+        self.production = pd.merge(self.production, self.unique_movie_id, on='movieId', how='left')
+
     def create_user_movie_edges(self):
         self.data["user"].node_id = torch.arange(len(self.unique_user_id))
         self.data["movie"].node_id = torch.arange(len(self.unique_movie_id))
@@ -55,6 +61,7 @@ class MyHeteroData():
         self.data["movie", "ratedby", "user"].edge_index = edge_index_user_to_movie.contiguous()
         rating = torch.from_numpy(self.ratings['rating'].values).to(torch.float)
         self.data["movie", "ratedby", "user"].rating = rating
+        self.data["movie", "ratedby", "user"].pos = (rating >= self.data_config['pos_threshold']).float()
         # print(self.data)
 
     def create_movie_genre_edges(self):
@@ -67,19 +74,51 @@ class MyHeteroData():
         
         edges = []
         for _, row in self.movies.iterrows():
-            movie_id = row['mappedID']  # mappedID của movie
-            genres = row['genres'].split('|')  # Tách genres
+            movie_id = row['mappedID']  
+            genres = row['genres'].split('|')  
             for genre in genres:
-                genre_id = genre_to_id[genre]  # mappedID của genre
-                edges.append((genre_id, movie_id))  # Thêm cạnh
+                genre_id = genre_to_id[genre] 
+                edges.append((genre_id, movie_id))  
         edges_array = np.array(edges, dtype=np.int64)
         self.data['genre', 'of', 'movie'].edge_index = torch.from_numpy(edges_array.T).contiguous()
+
+    def create_movie_production_edges(self):
+        cols = ['director', 'writers', 'stars']
+
+        def create_edge(col_name):    
+            self.production[col_name] = self.production[col_name].apply(ast.literal_eval)
+            exploded = self.production.explode(col_name)
+            # exploded = exploded[exploded[col_name].notnull()]
+            le = LabelEncoder()
+            exploded[col_name] = le.fit_transform(exploded[col_name])
+
+            self.production[col_name] = (
+                exploded.groupby(exploded.index)[col_name].apply(list)
+            )
+            edges = []
+            for _, row in self.production.iterrows():
+                movie_id = row['mappedID']
+                objects = row[col_name]
+                for obj in objects:
+                    edges.append((obj, movie_id))
+
+            edges_array = np.array(edges, dtype=np.int64)
+            self.data[col_name].node_id = torch.arange(len(le.classes_))
+            setattr(self, f'num_{col_name}', len(le.classes_))
+            self.data[col_name].num_nodes = len(le.classes_)
+            # print(col_name, self.data[col_name].num_nodes)
+            self.data[col_name, 'in', 'movie'].edge_index = torch.from_numpy(edges_array.T).contiguous()
+
+        for col in cols:
+            create_edge(col)
+
 
     def create_hetero_data(self):
         self.create_user_movie_edges()
         self.create_movie_genre_edges()
+        self.create_movie_production_edges()
         # self.data = T.ToUndirected()(self.data)
-        del self.ratings, self.movies, self.links 
+        del self.ratings, self.movies, self.links, self.production
     
     def split_data(self):
         transform = T.RandomLinkSplit(
@@ -125,13 +164,10 @@ class MyHeteroData():
     def load_batches(self):
         for i, batch in enumerate(self.trainloader):
             print('-----------------')
-            # print(batch)
             edge = batch["movie", "ratedby", "user"]
-            edge_index, unique_edges, edge_label_index = utils.get_unlabel_label_edge(edge)
-            print(edge_index.shape)
-            print(unique_edges.shape)
-            print(edge_label_index.shape)
-            if i==5:
+            print(batch)
+            # print(edge.pos)
+            if i == 0:  
                 break  
 
     def get_metadata(self):
