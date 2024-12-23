@@ -18,6 +18,8 @@ data:
   ratings_path: dataset/ml-latest-small/ratings.csv
   movies_path: dataset/ml-latest-small/movies.csv
   links_path: dataset/ml-latest-small/links.csv
+  products_path: dataset/ml-latest-small/links_product.csv
+  pos_threshold: 3.5
   val_ratio: 0.2
   test_ratio: 0.1
   batch_size: 16

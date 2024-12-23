@@ -72,19 +72,12 @@ class HeteroLightGCN(torch.nn.Module):
             key: self.embs[key](data[key].node_id) 
                 for key in data.node_types if key not in self.exclude_node
         }
-        edge_dict = {
-            key: data[key].edge_index 
-                for key in data.edge_types 
-                    if key[0] not in self.exclude_node and key[2] not in self.exclude_node
-        }
-        res_dict = {
-            key: x_dict[key]
-                for key in x_dict.keys()
-        }
-        count_dict = {
-            key: 1
-                for key in x_dict.keys()
-        }
+        edge_dict = {key: data[key].edge_index 
+                        for key in data.edge_types 
+                            if key[0] not in self.exclude_node and key[2] not in self.exclude_node}
+        res_dict = {key: x_dict[key]
+                        for key in x_dict.keys()}
+        count_dict = {key: 1 for key in x_dict.keys()}
 
         for i, (key, edge_index) in enumerate(edge_dict.items()):
             x = res_dict[key[0]]

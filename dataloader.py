@@ -16,6 +16,7 @@ class MyHeteroData():
         self.ratings = pd.read_csv(data_config['ratings_path'])
         self.movies = pd.read_csv(data_config['movies_path'])
         self.links = pd.read_csv(data_config['links_path'])
+        self.production = pd.read_csv(data_config['production_path'])
         self.data = HeteroData()
     
     def preprocess_df(self):
