@@ -42,6 +42,7 @@ def init(config_dir = None):
 def train_step(model, trainloader, valloader, optimizer, scheduler, scaler, writer):
     pbar = tqdm.tqdm(enumerate(trainloader), desc="Training", total=len(trainloader),
                      bar_format='{l_bar}{bar:10}{r_bar}{bar:-10b}')
+    
     for i, batch in pbar:
         optimizer.zero_grad()
         with autocast(device_type=device.type, enabled=scaler is not None):
@@ -49,16 +50,25 @@ def train_step(model, trainloader, valloader, optimizer, scheduler, scaler, writ
             label = batch['movie', 'ratedby', 'user'].edge_label
             res, res_dict = model(batch)
             train_step_loss = bce(res, label)
-            pbar.set_postfix({
-                f"batch": i,
-                f"train loss": train_step_loss.item()})
+
+        if scaler is not None:
+            scaler.scale(train_step_loss).backward()
+            scaler.step(optimizer)
+            scaler.update()
+        else:
+            train_step_loss.backward()
+            optimizer.step()
+
+        pbar.set_postfix({
+            f"batch": i,
+            f"train loss": train_step_loss.item()})
 
 
 def train(config_dir = None):
     config, dataset, model, optimizer, scheduler, scaler, writer = init(config_dir)
     model.to(device)
     for epoch in range(2):
-        train_step(model, dataset.trainloader, dataset.valloader, optimizer, scheduler, scaler)
+        train_step(model, dataset.trainloader, dataset.valloader, optimizer, scheduler, scaler, writer)
 
 if __name__ == "__main__":
     train()

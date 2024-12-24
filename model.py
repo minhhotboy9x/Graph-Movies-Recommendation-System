@@ -80,7 +80,7 @@ class HeteroLightGCN(torch.nn.Module):
         
         res_dict = {key: x_dict[key]
                         for key in x_dict.keys()}
-        count_dict = {key: 1 for key in x_dict.keys()}
+        count_dict = {key: 0 for key in x_dict.keys()}
 
         for _ in range(self.model_config['num_layers']):
             for _, (key, edge_index) in enumerate(edge_dict.items()):
