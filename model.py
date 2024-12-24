@@ -50,7 +50,7 @@ class Classifier(torch.nn.Module):
         edge_feat_user = x_user[edge_label_index[1]]
         edge_feat_movie = x_movie[edge_label_index[0]]
 
-        return F.sigmoid((edge_feat_user * edge_feat_movie).sum(dim=-1))
+        return (edge_feat_user * edge_feat_movie).sum(dim=-1)
 
 class HeteroLightGCN(torch.nn.Module):
     def __init__(self, hetero_metadata=None, model_config=None):

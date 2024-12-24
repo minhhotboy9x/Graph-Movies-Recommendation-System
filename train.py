@@ -4,6 +4,7 @@ from torch.utils.tensorboard import SummaryWriter
 from torch.amp import autocast
 from dataloader import MyHeteroData
 from model import HeteroLightGCN
+from loss import bce
 import tqdm
 import utils
 
@@ -44,8 +45,10 @@ def train_step(model, trainloader, valloader, optimizer, scheduler, scaler):
             batch.to(device)
             label = batch['movie', 'ratedby', 'user'].edge_label
             res, res_dict = model(batch)
+            train_step_loss = bce(res, label)
             pbar.set_postfix({
-                f"batch": i})
+                f"batch": i,
+                f"train loss": train_step_loss.item()})
 
 
 def train(config_dir = None):

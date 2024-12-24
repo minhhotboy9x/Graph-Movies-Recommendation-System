@@ -30,4 +30,4 @@ model:
   num_layers: 2
   type: "HeteroLightGCN"
   num_dim: 128
-  exclude_node: ['genre']
+  exclude_node: []

@@ -120,6 +120,8 @@ class MyHeteroData():
         # self.data = T.ToUndirected()(self.data)
         for node_type in self.data.node_types:
             print(f"Number of nodes for '{node_type}': {self.data[node_type].num_nodes}")
+        for edge_type in self.data.edge_types:
+            print(f"Number of edges for '{edge_type}': {self.data[edge_type].edge_index.size(1)}")
 
         del self.ratings, self.movies, self.links, self.production
     
