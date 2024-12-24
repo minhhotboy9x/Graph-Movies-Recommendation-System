@@ -43,7 +43,7 @@ class MyHeteroData():
 
         self.movies = pd.merge(self.movies, self.unique_movie_id, on='movieId', how='left')
 
-        self.production = self.production.drop(columns=['imdbId', 'imdbId', 'tmdbId', 'true imdbId'])
+        self.production = self.production.drop(columns=['imdbId', 'imdbId'])
         self.production = pd.merge(self.production, self.unique_movie_id, on='movieId', how='left')
 
     def create_user_movie_edges(self):

@@ -19,6 +19,10 @@ data:
   movies_path: dataset/ml-latest-small/movies.csv
   links_path: dataset/ml-latest-small/links.csv
   productions_path: dataset/ml-latest-small/links_production.csv
+  # ratings_path: dataset/ml-32m/ratings.csv
+  # movies_path: dataset/ml-32m/movies.csv
+  # links_path: dataset/ml-32m/links.csv
+  # productions_path: dataset/ml-32m/links_production.csv
   pos_threshold: 3.5
   val_ratio: 0.2
   test_ratio: 0.1

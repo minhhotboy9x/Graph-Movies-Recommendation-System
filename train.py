@@ -55,7 +55,7 @@ def train(config_dir = None):
     config, dataset, model, optimizer, scheduler, scaler = init(config_dir)
     model.to(device)
     writer = SummaryWriter()
-    for epoch in range(1):
+    for epoch in range(2):
         train_step(model, dataset.trainloader, dataset.valloader, optimizer, scheduler, scaler)
 
 if __name__ == "__main__":
