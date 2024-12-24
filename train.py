@@ -34,9 +34,12 @@ def init(config_dir = None):
     model = HeteroLightGCN(dataset.get_metadata(), config['model'])
 
     optimizer, scheduler, scaler = utils.create_optimizer_scheduler_scaler(config, model)
-    return config, dataset, model, optimizer, scheduler, scaler
 
-def train_step(model, trainloader, valloader, optimizer, scheduler, scaler):
+    writer = SummaryWriter()
+
+    return config, dataset, model, optimizer, scheduler, scaler, writer
+
+def train_step(model, trainloader, valloader, optimizer, scheduler, scaler, writer):
     pbar = tqdm.tqdm(enumerate(trainloader), desc="Training", total=len(trainloader),
                      bar_format='{l_bar}{bar:10}{r_bar}{bar:-10b}')
     for i, batch in pbar:
@@ -52,9 +55,8 @@ def train_step(model, trainloader, valloader, optimizer, scheduler, scaler):
 
 
 def train(config_dir = None):
-    config, dataset, model, optimizer, scheduler, scaler = init(config_dir)
+    config, dataset, model, optimizer, scheduler, scaler, writer = init(config_dir)
     model.to(device)
-    writer = SummaryWriter()
     for epoch in range(2):
         train_step(model, dataset.trainloader, dataset.valloader, optimizer, scheduler, scaler)
 
