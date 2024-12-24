@@ -144,7 +144,7 @@ class MyHeteroData():
             shuffle = True,
             edge_label_index = (("movie", "ratedby", "user"), 
                                 self.train_data["movie", "ratedby", "user"].edge_label_index), 
-            edge_label = self.train_data["movie", "ratedby", "user"].edge_label,
+            edge_label = self.train_data["movie", "ratedby", "user"].pos,
             num_neighbors = self.data_config['num_neighbors'], 
         )
         self.valloader = LinkNeighborLoader(
@@ -153,7 +153,7 @@ class MyHeteroData():
             shuffle = False,
             edge_label_index = (("movie", "ratedby", "user"), 
                                 self.val_data["movie", "ratedby", "user"].edge_label_index), 
-            edge_label = self.val_data["movie", "ratedby", "user"].edge_label,  
+            edge_label = self.val_data["movie", "ratedby", "user"].pos,  
             num_neighbors = self.data_config['num_neighbors'],  
         )
         self.testloader = LinkNeighborLoader(
@@ -162,7 +162,7 @@ class MyHeteroData():
             shuffle = False,
             edge_label_index = (("movie", "ratedby", "user"), 
                                 self.test_data["movie", "ratedby", "user"].edge_label_index), 
-            edge_label = self.test_data["movie", "ratedby", "user"].edge_label,  
+            edge_label = self.test_data["movie", "ratedby", "user"].pos,  
             num_neighbors = self.data_config['num_neighbors'],  
         )
     
@@ -171,7 +171,18 @@ class MyHeteroData():
             print('-----------------')
             edge = batch["movie", "ratedby", "user"]
             print(batch)
-            # print(edge.pos)
+            # print(edge)
+            # Kiểm tra xem edge_label_index có nằm trong edge_index hay không
+            # edge_index = edge.edge_index  # Lấy edge_index
+            # edge_label_index = edge.edge_label_index  # Lấy edge_label_index
+
+            # # Chuyển edge_index và edge_label_index sang dạng set để so sánh
+            # edge_index_set = set(map(tuple, edge_index.t().tolist()))
+            # edge_label_set = set(map(tuple, edge_label_index.t().tolist()))
+
+            # common_edges = edge_label_set.intersection(edge_index_set)
+            # print(f"Number of common edges: {len(common_edges)}")
+            # print(f"Common edges: {common_edges}")
             if i == 0:  
                 break  
 

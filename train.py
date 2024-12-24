@@ -47,7 +47,7 @@ def train_step(model, trainloader, valloader, optimizer, scheduler, scaler, writ
         optimizer.zero_grad()
         with autocast(device_type=device.type, enabled=scaler is not None):
             batch.to(device)
-            label = batch['movie', 'ratedby', 'user'].edge_label
+            label = batch['movie', 'ratedby', 'user'].pos
             res, res_dict = model(batch)
             train_step_loss = bce(res, label)
 

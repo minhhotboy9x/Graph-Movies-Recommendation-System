@@ -78,24 +78,29 @@ class HeteroLightGCN(torch.nn.Module):
                         for key in data.edge_types 
                             if key[0] not in self.exclude_node and key[2] not in self.exclude_node}
         
-        res_dict = {key: x_dict[key]
+        embs_dict = {key: [x_dict[key]]
                         for key in x_dict.keys()}
-        count_dict = {key: 0 for key in x_dict.keys()}
 
         for _ in range(self.model_config['num_layers']):
+            tmp_dict = {key: 0 for key in x_dict.keys()}
             for _, (key, edge_index) in enumerate(edge_dict.items()):
-                x = res_dict[key[0]]
-                y = res_dict[key[2]]
+                x = x_dict[key[0]]
+                y = x_dict[key[2]]
 
                 x, y = self.lightgcn(nodes=(x, y), edge_index=edge_index)
 
-                res_dict[key[0]] = res_dict[key[0]] + x
-                res_dict[key[2]] = res_dict[key[2]] + y
-                count_dict[key[0]] += 1
-                count_dict[key[2]] += 1
+                tmp_dict[key[0]] = tmp_dict[key[0]] + x
+                tmp_dict[key[2]] = tmp_dict[key[2]] + y
 
-        for key in res_dict.keys():
-            res_dict[key] = res_dict[key] / count_dict[key]
+            for key in x_dict.keys():
+                embs_dict[key].append(tmp_dict[key])
+
+        res_dict = {}
+        for key in embs_dict.keys():
+            embs = torch.stack(embs_dict[key], dim=0)
+            weights = 1.0 / (torch.arange(self.model_config['num_layers'] + 1) + 1.0)
+            embs = (weights.view(-1, 1, 1) * embs).sum(dim=0)
+            res_dict[key] = embs
 
         res = self.classifier(res_dict['user'], res_dict['movie'], data['movie', 'ratedby', 'user'].edge_label_index)
 
