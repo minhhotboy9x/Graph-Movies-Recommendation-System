@@ -1,5 +1,5 @@
 train:
-  epochs: &epochs 20
+  epochs: &epochs 100
   optimizer:
     type: torch.optim.SGD
     params:
@@ -23,7 +23,7 @@ data:
   val_ratio: 0.2
   test_ratio: 0.1
   batch_size: 16
-  num_neighbors: [40]
+  num_neighbors: [20]
   
 
 model:

@@ -44,6 +44,7 @@ def create_optimizer_scheduler_scaler(config_yaml, model):
         scaler = None  # No AMP, no scaler
     
     return optimizer, scheduler, scaler
+    
 
 def set_seed(seed = 0):
     torch.manual_seed(seed)
@@ -54,6 +55,7 @@ def set_seed(seed = 0):
     torch.backends.cudnn.deterministic = True
     os.environ["CUBLAS_WORKSPACE_CONFIG"] = ":4096:8"
     os.environ["PYTHONHASHSEED"] = str(seed)
+    os.environ["TF_ENABLE_ONEDNN_OPTS"] = '0'
 
 
 if __name__ == "__main__":
