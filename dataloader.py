@@ -118,6 +118,9 @@ class MyHeteroData():
         self.create_movie_genre_edges()
         self.create_movie_production_edges()
         # self.data = T.ToUndirected()(self.data)
+        for node_type in self.data.node_types:
+            print(f"Number of nodes for '{node_type}': {self.data[node_type].num_nodes}")
+
         del self.ratings, self.movies, self.links, self.production
     
     def split_data(self):
