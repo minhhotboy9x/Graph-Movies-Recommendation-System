@@ -12,7 +12,8 @@ class BipartiteLightGCN(nn.MessagePassing):
     def __init__(self, **kwargs):
         super().__init__(aggr='add')  # Aggregates neighboring nodes with 'add' method
 
-    def forward(self, nodes: tuple[torch.Tensor, torch.Tensor], edge_index: torch.Tensor):
+    def forward(self, nodes: tuple[torch.Tensor, torch.Tensor], 
+                edge_index: torch.Tensor, edge_weight: torch.Tensor = None):
         x, y = nodes
         from_, to_ = edge_index
         # Degree calculation for both sets X and Y
@@ -33,6 +34,10 @@ class BipartiteLightGCN(nn.MessagePassing):
         
         # Normalize the messages with respect to both sets
         norm = norm_x * norm_y
+
+        if edge_weight is not None:
+            norm = norm * edge_weight
+
         x2y = self.propagate(edge_index, size=(x.size(0), y.size(0)), x=(x, y), norm=norm)
         y2x = self.propagate(edge_index.flip(0), size=(y.size(0), x.size(0)), x=(y, x), norm=norm)
         return y2x, x2y
@@ -84,10 +89,11 @@ class HeteroLightGCN(torch.nn.Module):
         for _ in range(self.model_config['num_layers']):
             tmp_dict = {key: 0 for key in x_dict.keys()}
             for _, (key, edge_index) in enumerate(edge_dict.items()):
+                edge_weight = getattr(data[key], 'weight', None)
                 x = x_dict[key[0]]
                 y = x_dict[key[2]]
 
-                x, y = self.lightgcn(nodes=(x, y), edge_index=edge_index)
+                x, y = self.lightgcn(nodes=(x, y), edge_index=edge_index, edge_weight=edge_weight)
 
                 tmp_dict[key[0]] = tmp_dict[key[0]] + x
                 tmp_dict[key[2]] = tmp_dict[key[2]] + y
@@ -99,6 +105,7 @@ class HeteroLightGCN(torch.nn.Module):
         for key in embs_dict.keys():
             embs = torch.stack(embs_dict[key], dim=0)
             weights = 1.0 / (torch.arange(self.model_config['num_layers'] + 1) + 1.0)
+            weights = weights.to(embs.device)
             embs = (weights.view(-1, 1, 1) * embs).sum(dim=0)
             res_dict[key] = embs
 

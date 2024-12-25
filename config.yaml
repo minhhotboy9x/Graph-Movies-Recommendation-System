@@ -13,6 +13,8 @@ train:
       eta_min: 0.0001
   amp: true
 
+logdir: "runs"
+
 data:
   type: dataloader.MyHeteroData
   ratings_path: dataset/ml-latest-small/ratings.csv
@@ -37,5 +39,6 @@ data:
 model:
   num_layers: 2
   type: "HeteroLightGCN"
+  threshold: 0.7
   num_dim: 128
-  exclude_node: []
+  exclude_node: ['genres', 'director', 'writers', 'stars']

@@ -1,3 +1,4 @@
+import os
 import torch
 
 from torch.utils.tensorboard import SummaryWriter
@@ -5,6 +6,7 @@ from torch.amp import autocast
 from dataloader import MyHeteroData
 from model import HeteroLightGCN
 from loss import bce
+from eval import train_eval
 import tqdm
 import utils
 
@@ -35,40 +37,53 @@ def init(config_dir = None):
 
     optimizer, scheduler, scaler = utils.create_optimizer_scheduler_scaler(config, model)
 
-    writer = SummaryWriter()
-
+    os.makedirs(config['logdir'], exist_ok=True)
+    num_train = len(os.listdir(config['logdir']))
+    writer = SummaryWriter(log_dir=os.path.join(config['logdir'], f"train_{num_train}"))
+    
     return config, dataset, model, optimizer, scheduler, scaler, writer
 
-def train_step(model, trainloader, valloader, optimizer, scheduler, scaler, writer):
+def train_step(model, trainloader, optimizer, scheduler, scaler):
     pbar = tqdm.tqdm(enumerate(trainloader), desc="Training", total=len(trainloader),
                      bar_format='{l_bar}{bar:10}{r_bar}{bar:-10b}')
-    
+    tloss = None # total loss
     for i, batch in pbar:
+        # print(f"Batch {i}: {batch['movie', 'ratedby', 'user'].edge_label}")
         optimizer.zero_grad()
         with autocast(device_type=device.type, enabled=scaler is not None):
             batch.to(device)
-            label = batch['movie', 'ratedby', 'user'].pos
+            label = batch['movie', 'ratedby', 'user'].edge_label
             res, res_dict = model(batch)
-            train_step_loss = bce(res, label)
+            loss_items = bce(res, label)
+
+            tloss = (
+                (tloss * i + loss_items) / (i + 1) if tloss is not None else loss_items
+            )
 
         if scaler is not None:
-            scaler.scale(train_step_loss).backward()
+            scaler.scale(loss_items).backward()
             scaler.step(optimizer)
             scaler.update()
         else:
-            train_step_loss.backward()
+            loss_items.backward()
             optimizer.step()
 
         pbar.set_postfix({
             f"batch": i,
-            f"train loss": train_step_loss.item()})
+            f"train loss": loss_items.item()})
+    
+    return tloss
 
 
 def train(config_dir = None):
     config, dataset, model, optimizer, scheduler, scaler, writer = init(config_dir)
     model.to(device)
     for epoch in range(2):
-        train_step(model, dataset.trainloader, dataset.valloader, optimizer, scheduler, scaler, writer)
+        print(f"Epoch {epoch}")
+        train_loss = train_step(model, dataset.trainloader, 
+                                    optimizer, scheduler, scaler)
+        scheduler.step()
+        val_loss, val_acc = train_eval(model, dataset.valloader)
 
 if __name__ == "__main__":
     train()

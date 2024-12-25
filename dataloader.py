@@ -137,10 +137,17 @@ class MyHeteroData():
                     num_test=self.data_config["test_ratio"],
                     add_negative_train_samples=False,
                     edge_types=("movie", "ratedby", "user"),
-                    disjoint_train_ratio=0.2
+                    neg_sampling_ratio = 0,
+                    disjoint_train_ratio=0.5,
                     # rev_edge_types=("movie", "rev_rates", "user"),
                 )
         self.train_data, self.val_data, self.test_data = transform(self.data)
+        # print(self.train_data)
+        # print('---------------------------------')
+        # print(self.val_data)
+        # print('---------------------------------')
+        # print(self.test_data)
+        # print(self.data_config['val_ratio'])
 
     def create_dataloader(self):
         batch_size = self.data_config['batch_size']
@@ -173,10 +180,13 @@ class MyHeteroData():
         )
     
     def load_batches(self):
-        for i, batch in enumerate(self.trainloader):
+        for i, batch in enumerate(self.valloader):
             print('-----------------')
             edge = batch["movie", "ratedby", "user"]
-            print(batch)
+            # print(batch)
+            # print(edge.weight)
+            # print(edge.rating)
+            # print(getattr(batch['stars', 'in', 'movie'], 'weight', None))
             # print(edge)
             # Kiểm tra xem edge_label_index có nằm trong edge_index hay không
             # edge_index = edge.edge_index  # Lấy edge_index
