@@ -28,6 +28,10 @@ data:
   test_ratio: 0.1
   batch_size: 16
   num_neighbors: [20]
+  weight_user_movie:
+    type: sigmoid
+    k: 3 # elasticity
+    c: 3.5 # center
   
 
 model:

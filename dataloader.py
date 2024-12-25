@@ -62,6 +62,12 @@ class MyHeteroData():
         rating = torch.from_numpy(self.ratings['rating'].values).to(torch.float)
         self.data["movie", "ratedby", "user"].rating = rating
         self.data["movie", "ratedby", "user"].pos = (rating >= self.data_config['pos_threshold']).float()
+
+        # weight user movie edges
+        k = self.data_config['weight_user_movie']['k']
+        c = self.data_config['weight_user_movie']['c']
+        self.data["movie", "ratedby", "user"].weight = 1/(1 + torch.exp(-k * (rating - c)))
+                        
         # print(self.data)
 
     def create_movie_genre_edges(self):
