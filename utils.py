@@ -4,6 +4,7 @@ import yaml
 import random
 import numpy as np
 import importlib
+import matplotlib.pyplot as plt
 
 
 # Load a YAML configuration file
@@ -77,6 +78,65 @@ def set_seed(seed = 0):
     os.environ["PYTHONHASHSEED"] = str(seed)
     os.environ["TF_ENABLE_ONEDNN_OPTS"] = '0'
 
+def save_checkpoint(model, optimizer, scheduler, 
+                    scaler, epoch, train_loss, 
+                    val_loss, val_acc, val_f1, 
+                    model_path, config):
+    """
+    Lưu toàn bộ mô hình và các thông số huấn luyện vào file checkpoint.
+    
+    Args:
+        model: Mô hình PyTorch (hoặc bất kỳ mô hình nào).
+        optimizer: Optimizer (Ví dụ: Adam, SGD, ...).
+        scheduler: Scheduler (Ví dụ: Learning rate scheduler).
+        scaler: Scaler dùng cho mixed precision training.
+        epoch: Số epoch hiện tại.
+        train_loss: Giá trị train loss.
+        val_loss: Giá trị validation loss.
+        val_acc: Accuracy trên validation.
+        val_f1: F1 score trên validation.
+        model_path: Đường dẫn đến file lưu checkpoint.
+        config: Cấu hình huấn luyện.
+    """
+    checkpoint = {
+        'model': model,              # Thông số mô hình
+        'optimizer': optimizer,      # Thông số optimizer
+        'scheduler': scheduler,      # Thông số scheduler
+        'scaler': scaler,            # Thông số scaler (nếu có)
+        'epoch': epoch,                          # Số epoch hiện tại
+        'train_loss': train_loss,                # Giá trị train loss
+        'val_loss': val_loss,                    # Giá trị validation loss
+        'val_acc': val_acc,                      # Accuracy trên validation
+        'val_f1': val_f1,                        # F1 score trên validation
+        'config': config                        # Cấu hình huấn luyện
+    }
+    torch.save(checkpoint, model_path)
+
+def load_checkpoint(save_path):
+    """
+    Load checkpoint từ file.
+    
+    Args:
+        save_path: Đường dẫn đến file checkpoint.
+    
+    Returns:
+        checkpoint: Dữ liệu trong checkpoint.
+    """
+    checkpoint = torch.load(save_path)
+    return checkpoint
+
+def save_loss_plot(train_losses, val_losses, file_path):
+    plt.figure(figsize=(10, 5))
+    plt.plot(range(len(train_losses)), train_losses, label='Train Loss', color='blue')
+    plt.plot(range(len(val_losses)), val_losses, label='Validation Loss', color='orange')
+    plt.xlabel('Epoch')
+    plt.ylabel('Loss')
+    plt.title('Training and Validation Loss over Epochs')
+    plt.legend()
+    plt.grid(True)
+
+    plt.savefig(file_path)
+    plt.close()
 
 if __name__ == "__main__":
     config_yaml = load_config("config.yaml")

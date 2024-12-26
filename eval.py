@@ -46,4 +46,4 @@ def train_eval(model, valloader):
     print(f"- F1 Score for each class:")
     for label, f1_class in f1.items():
         print(f"    + Class {label}: {f1_class:.4f}")
-    return tloss, acc
+    return tloss, acc, f1

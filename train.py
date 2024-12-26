@@ -62,10 +62,12 @@ def train_step(model, trainloader, optimizer, scheduler, scaler):
 
         if scaler is not None:
             scaler.scale(loss_items).backward()
+            torch.nn.utils.clip_grad_norm_(model.parameters(), max_norm=10.0)
             scaler.step(optimizer)
             scaler.update()
         else:
             loss_items.backward()
+            torch.nn.utils.clip_grad_norm_(model.parameters(), max_norm=10.0)
             optimizer.step()
 
         pbar.set_postfix({
@@ -78,12 +80,46 @@ def train_step(model, trainloader, optimizer, scheduler, scaler):
 def train(config_dir = None):
     config, dataset, model, optimizer, scheduler, scaler, writer = init(config_dir)
     model.to(device)
+
+    best_val_loss = float('inf') 
+    last_model_path = os.path.join(writer.log_dir, "last.pt")
+    best_model_path = os.path.join(writer.log_dir, "best.pt")
+    loss_plot_path = os.path.join(writer.log_dir, "loss_plot.png")
+    
+    train_losses = []
+    val_losses = []
+    print("Start training...")
     for epoch in range(2):
+        
         print(f"Epoch {epoch}")
         train_loss = train_step(model, dataset.trainloader, 
                                     optimizer, scheduler, scaler)
         scheduler.step()
-        val_loss, val_acc = train_eval(model, dataset.valloader)
+        val_loss, val_acc, val_f1 = train_eval(model, dataset.valloader)
+        train_losses.append(train_loss.detach().cpu().numpy())
+        val_losses.append(val_loss.detach().cpu().numpy())
+
+        # save model
+        utils.save_checkpoint(model, optimizer, scheduler, scaler, epoch, train_loss,
+                                val_loss, val_acc, val_f1, last_model_path, config)
+        if val_loss < best_val_loss:
+            best_val_loss = val_loss
+            utils.save_checkpoint(model, optimizer, scheduler, scaler, epoch, train_loss,
+                                val_loss, val_acc, val_f1, best_model_path, config)
+        # save loss plot 
+        utils.save_loss_plot(train_losses, val_losses, loss_plot_path)
+        # Log train/val metrics to TensorBoard
+        writer.add_scalar('Train/Loss', train_loss, epoch)
+        writer.add_scalar('Validation/Loss', val_loss, epoch)
+        writer.add_scalar('Validation/Accuracy', val_acc, epoch)
+        
+        # If f1 is a dictionary, log each class's f1 score as well
+        for label, f1_class in val_f1.items():
+            writer.add_scalar(f'Validation/F1/Class_{label}', f1_class, epoch)
+        
+        # Optionally, log average F1 score
+        writer.add_scalar('Validation/F1/Average', sum(val_f1.values()) / len(val_f1), epoch)
+
         print('-'*50)
 
 if __name__ == "__main__":
