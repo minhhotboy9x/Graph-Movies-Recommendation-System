@@ -1,7 +1,6 @@
 import os
 import torch
-
-from torch.utils.tensorboard import SummaryWriter
+import argparse
 from torch.amp import autocast
 from dataloader import MyHeteroData
 from model import HeteroLightGCN
@@ -11,6 +10,8 @@ import tqdm
 import utils
 
 utils.set_seed(0)
+
+from torch.utils.tensorboard import SummaryWriter
 
 device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
 print("device:", device)
@@ -40,8 +41,24 @@ def init(config_dir = None):
     os.makedirs(config['logdir'], exist_ok=True)
     num_train = len(os.listdir(config['logdir']))
     writer = SummaryWriter(log_dir=os.path.join(config['logdir'], f"train_{num_train}"))
-    
-    return config, dataset, model, optimizer, scheduler, scaler, writer
+    end_epoch = config['train']['epochs']
+    return config, dataset, model, optimizer, scheduler, scaler, writer, end_epoch
+
+def init_from_checkpoint(checkpoint):
+    ckpt = utils.load_checkpoint(checkpoint)
+    config = ckpt["config"]
+    dataset = load_myheterodata(config['data'])
+    model = ckpt["model"]
+    optimizer = ckpt["optimizer"]
+    scheduler = ckpt["scheduler"]
+    scaler = ckpt["scaler"]
+    log_dir = ckpt["log_dir"]
+    writer = SummaryWriter(log_dir=log_dir)
+    epoch = ckpt["epoch"]
+    end_epoch = ckpt["end_epoch"]
+    train_losses = ckpt["train_losses"]
+    val_losses = ckpt["val_losses"]
+    return config, dataset, model, optimizer, scheduler, scaler, writer, epoch, end_epoch, train_losses, val_losses
 
 def train_step(model, trainloader, optimizer, scheduler, scaler):
     pbar = tqdm.tqdm(enumerate(trainloader), desc="Training", total=len(trainloader),
@@ -77,21 +94,50 @@ def train_step(model, trainloader, optimizer, scheduler, scaler):
     return tloss
 
 
-def train(config_dir = None):
-    config, dataset, model, optimizer, scheduler, scaler, writer = init(config_dir)
-    model.to(device)
+def train(args):
+    start_epoch = 0
+    config = None
+    dataset = None
+    model = None
+    optimizer = None
+    scheduler = None
+    scaler = None
+    writer = None
+    epoch = 0
+    end_epoch = 0
+    train_losses = []
+    val_losses = []
 
+    if args.checkpoint is not None:
+        config, dataset, model, optimizer, scheduler, scaler,\
+              writer, epoch, end_epoch, train_losses, val_losses = init_from_checkpoint(args.checkpoint)
+        
+    if args.resume is False and args.checkpoint is not None:
+        optimizer, scheduler, scaler = utils.create_optimizer_scheduler_scaler(config, model)
+        writer = SummaryWriter(log_dir=os.path.join(config['logdir'], f"train_{len(os.listdir(config['logdir']))}"))
+        epoch = 0
+        end_epoch = config['train']['epochs']
+        train_losses = []
+        val_losses = []
+    elif args.checkpoint is None:
+        config, dataset, model, optimizer, scheduler, scaler, writer, end_epoch = init(args.config)
+    
+    if args.resume:
+        if args.checkpoint is None:
+            raise ValueError("Please provide a checkpoint file to resume training from.")
+        print("Resuming training...")
+        start_epoch = epoch+1
+        
+    model.to(device)
     best_val_loss = float('inf') 
     last_model_path = os.path.join(writer.log_dir, "last.pt")
     best_model_path = os.path.join(writer.log_dir, "best.pt")
     loss_plot_path = os.path.join(writer.log_dir, "loss_plot.png")
     
-    train_losses = []
-    val_losses = []
     print("Start training...")
-    for epoch in range(2):
+    for epoch in range(start_epoch, end_epoch):
         
-        print(f"Epoch {epoch}")
+        print(f"Epoch {epoch+1}/{end_epoch}")
         train_loss = train_step(model, dataset.trainloader, 
                                     optimizer, scheduler, scaler)
         scheduler.step()
@@ -100,12 +146,14 @@ def train(config_dir = None):
         val_losses.append(val_loss.detach().cpu().numpy())
 
         # save model
-        utils.save_checkpoint(model, optimizer, scheduler, scaler, epoch, train_loss,
-                                val_loss, val_acc, val_f1, last_model_path, config)
+        utils.save_checkpoint(model, optimizer, scheduler, scaler, epoch, end_epoch, train_loss,
+                                val_loss, val_acc, val_f1, last_model_path, config, 
+                                writer.log_dir, train_losses, val_losses)
         if val_loss < best_val_loss:
             best_val_loss = val_loss
-            utils.save_checkpoint(model, optimizer, scheduler, scaler, epoch, train_loss,
-                                val_loss, val_acc, val_f1, best_model_path, config)
+            utils.save_checkpoint(model, optimizer, scheduler, scaler, epoch, end_epoch, train_loss,
+                                val_loss, val_acc, val_f1, best_model_path, config, 
+                                writer.log_dir, train_losses, val_losses)
         # save loss plot 
         utils.save_loss_plot(train_losses, val_losses, loss_plot_path)
         # Log train/val metrics to TensorBoard
@@ -123,4 +171,10 @@ def train(config_dir = None):
         print('-'*50)
 
 if __name__ == "__main__":
-    train()
+    parser = argparse.ArgumentParser(description='Training')
+    parser.add_argument('--config', type=str, default="config.yaml" ,help='Path to config file')
+    parser.add_argument('--checkpoint', type=str, help='Path to checkpoint file')
+    parser.add_argument('--resume', type=bool, default=False, help='Resume training')
+    args = parser.parse_args()
+
+    train(args)

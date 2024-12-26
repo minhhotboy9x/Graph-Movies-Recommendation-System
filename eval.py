@@ -1,8 +1,7 @@
 import os
 import torch
+import argparse
 
-from torch.utils.tensorboard import SummaryWriter
-from torch.amp import autocast
 from dataloader import MyHeteroData
 from model import HeteroLightGCN
 from loss import bce
@@ -16,6 +15,7 @@ device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
 
 def train_eval(model, valloader):
     model.eval()
+    model.to(device)
     acc_eval = Accuracy()
     f1_eval = F1Score()
     pbar = tqdm.tqdm(enumerate(valloader), desc="Validation", total=len(valloader),
@@ -47,3 +47,35 @@ def train_eval(model, valloader):
     for label, f1_class in f1.items():
         print(f"    + Class {label}: {f1_class:.4f}")
     return tloss, acc, f1
+
+def load_myheterodata(data_config):
+    dataset = MyHeteroData(data_config)
+    dataset.preprocess_df()
+    dataset.create_hetero_data()
+    dataset.split_data()
+    dataset.create_dataloader()
+    return dataset
+
+def init_from_checkpoint(checkpoint):
+    ckpt = utils.load_checkpoint(checkpoint)
+    config = ckpt["config"]
+    dataset = load_myheterodata(config['data'])
+    model = ckpt["model"]
+    return config, dataset, model
+
+def eval(args):
+    config, dataset, model = init_from_checkpoint(args.checkpoint)
+    if args.split == 'test':
+        valloader = dataset.testloader
+    else:
+        valloader = dataset.valloader
+    val_loss, val_acc, val_f1 = train_eval(model, valloader)
+    return val_loss, val_acc, val_f1
+
+if __name__ == "__main__":
+    parser = argparse.ArgumentParser()
+    parser.add_argument("--checkpoint", type=str, required=True, help="Path to the checkpoint file.")
+    parser.add_argument("--split", type=str, choices=['val', 'test'], default='test' ,help="Split to evaluate on.")
+    args = parser.parse_args()
+    
+    eval(args)

@@ -78,10 +78,12 @@ def set_seed(seed = 0):
     os.environ["PYTHONHASHSEED"] = str(seed)
     os.environ["TF_ENABLE_ONEDNN_OPTS"] = '0'
 
+
 def save_checkpoint(model, optimizer, scheduler, 
-                    scaler, epoch, train_loss, 
+                    scaler, epoch, end_epoch, train_loss, 
                     val_loss, val_acc, val_f1, 
-                    model_path, config):
+                    model_path, config, log_dir,
+                    train_losses, val_losses):
     """
     Lưu toàn bộ mô hình và các thông số huấn luyện vào file checkpoint.
     
@@ -104,11 +106,15 @@ def save_checkpoint(model, optimizer, scheduler,
         'scheduler': scheduler,      # Thông số scheduler
         'scaler': scaler,            # Thông số scaler (nếu có)
         'epoch': epoch,                          # Số epoch hiện tại
+        'end_epoch': end_epoch,                  # Số epoch kết thúc
         'train_loss': train_loss,                # Giá trị train loss
         'val_loss': val_loss,                    # Giá trị validation loss
         'val_acc': val_acc,                      # Accuracy trên validation
         'val_f1': val_f1,                        # F1 score trên validation
-        'config': config                        # Cấu hình huấn luyện
+        'config': config,                        # Cấu hình huấn luyện
+        'log_dir': log_dir,                      # Thư mục lưu log
+        'train_losses': train_losses,            # List train loss qua các epoch
+        'val_losses': val_losses                 # List validation loss
     }
     torch.save(checkpoint, model_path)
 
@@ -127,9 +133,10 @@ def load_checkpoint(save_path):
 
 def save_loss_plot(train_losses, val_losses, file_path):
     plt.figure(figsize=(10, 5))
-    plt.plot(range(len(train_losses)), train_losses, label='Train Loss', color='blue')
-    plt.plot(range(len(val_losses)), val_losses, label='Validation Loss', color='orange')
+    plt.plot(range(len(train_losses)), train_losses, label='Train Loss', color='blue', marker='o', linestyle='-')
+    plt.plot(range(len(val_losses)), val_losses, label='Validation Loss', color='orange', marker='o', linestyle='-')
     plt.xlabel('Epoch')
+    plt.xticks(range(len(train_losses)))
     plt.ylabel('Loss')
     plt.title('Training and Validation Loss over Epochs')
     plt.legend()
@@ -139,10 +146,14 @@ def save_loss_plot(train_losses, val_losses, file_path):
     plt.close()
 
 if __name__ == "__main__":
-    config_yaml = load_config("config.yaml")
-    # print(config)
-    model = torch.nn.Linear(10, 1)
-    optimizer, scheduler, scaler = create_optimizer_scheduler_scaler(config_yaml, model)
-    print(optimizer)
-    print(scheduler)
-    print(scaler)
+    ckpt = load_checkpoint("runs/train_4/best.pt")
+    model = ckpt["model"]
+    optimizer = ckpt["optimizer"]
+    scheduler = ckpt["scheduler"]
+    scaler = ckpt["scaler"]
+    epoch = ckpt["epoch"]
+    print(model)
+    print(f"optimizer: {optimizer}")
+    print(f"scheduler: {scheduler}")
+    print(f"scaler: {scaler}")
+    print(f"epoch: {epoch}")

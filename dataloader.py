@@ -90,8 +90,9 @@ class MyHeteroData():
 
     def create_movie_production_edges(self):
         cols = ['director', 'writers', 'stars']
+        nodes = ['director', 'writer', 'star']
 
-        def create_edge(col_name):    
+        def create_edge(col_name, node_name):    
             self.production[col_name] = self.production[col_name].apply(ast.literal_eval)
             exploded = self.production.explode(col_name)
             # exploded = exploded[exploded[col_name].notnull()]
@@ -109,14 +110,14 @@ class MyHeteroData():
                     edges.append((obj, movie_id))
 
             edges_array = np.array(edges, dtype=np.int64)
-            self.data[col_name].node_id = torch.arange(len(le.classes_))
-            setattr(self, f'num_{col_name}', len(le.classes_))
-            self.data[col_name].num_nodes = len(le.classes_)
-            # print(col_name, self.data[col_name].num_nodes)
-            self.data[col_name, 'in', 'movie'].edge_index = torch.from_numpy(edges_array.T).contiguous()
+            self.data[node_name].node_id = torch.arange(len(le.classes_))
+            setattr(self, f'num_{node_name}', len(le.classes_))
+            self.data[node_name].num_nodes = len(le.classes_)
+            # print(node_name, self.data[node_name].num_nodes)
+            self.data[node_name, 'in', 'movie'].edge_index = torch.from_numpy(edges_array.T).contiguous()
 
-        for col in cols:
-            create_edge(col)
+        for col, node in zip(cols, nodes):
+            create_edge(col, node)
 
 
     def create_hetero_data(self):

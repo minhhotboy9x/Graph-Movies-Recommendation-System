@@ -40,6 +40,6 @@ data:
 model:
   num_layers: 2
   type: "HeteroLightGCN"
-  threshold: 0.7
+  threshold: 0.5
   num_dim: 128
-  exclude_node: ['genres', 'director', 'writers', 'stars']
+  exclude_node: ['genre', 'director', 'writer', 'star']
