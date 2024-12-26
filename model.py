@@ -37,7 +37,7 @@ class BipartiteLightGCN(nn.MessagePassing):
 
         if edge_weight is not None:
             norm = norm * edge_weight
-
+            
         x2y = self.propagate(edge_index, size=(x.size(0), y.size(0)), x=(x, y), norm=norm)
         y2x = self.propagate(edge_index.flip(0), size=(y.size(0), x.size(0)), x=(y, x), norm=norm)
         return y2x, x2y

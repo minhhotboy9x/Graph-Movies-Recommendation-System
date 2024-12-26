@@ -84,6 +84,7 @@ def train(config_dir = None):
                                     optimizer, scheduler, scaler)
         scheduler.step()
         val_loss, val_acc = train_eval(model, dataset.valloader)
+        print('-'*50)
 
 if __name__ == "__main__":
     train()

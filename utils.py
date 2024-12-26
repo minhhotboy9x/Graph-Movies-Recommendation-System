@@ -44,7 +44,27 @@ def create_optimizer_scheduler_scaler(config_yaml, model):
         scaler = None  # No AMP, no scaler
     
     return optimizer, scheduler, scaler
+
+def remove_label_edges(batch):
+    # print(type(output))
+    movie_user_edge = batch["movie", "ratedby", "user"]
+    edge_index = movie_user_edge.edge_index
+    edge_label_index = movie_user_edge.edge_label_index
+
+    edge_label_set = edge_label_index.t().unsqueeze(1)  # Shape: [n, 1, 2]
+    edges = edge_index.t().unsqueeze(0)                # Shape: [1, m, 2]
     
+    # So khớp tất cả cạnh trong edge_index với edge_label_index
+    matches = (edges == edge_label_set).all(dim=2)     # Shape: [n, m]
+    
+    # Kiểm tra xem mỗi cạnh trong edge_index có khớp với ít nhất một cạnh trong edge_label_index
+    mask = ~matches.any(dim=0)  # Shape: [m], True nếu cạnh không khớp
+    movie_user_edge.edge_index = edge_index[:, mask]
+    movie_user_edge.pos = movie_user_edge.pos[mask]
+    movie_user_edge.rating = movie_user_edge.rating[mask]
+    movie_user_edge.weight = movie_user_edge.weight[mask]
+    movie_user_edge.e_id = movie_user_edge.e_id[mask]
+    return batch
 
 def set_seed(seed = 0):
     torch.manual_seed(seed)
