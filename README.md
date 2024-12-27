@@ -24,4 +24,4 @@ eval.py [-h] --checkpoint CHECKPOINT [--split {val,test}]
 ```
 See in `eval.py` arguments for more details.
 
-> **⚠️Note:** The dataset default is splited by 7:2:1 respecting to train:val:test when running `train.py` or `val.py`. The random seeds are set to 0 to guarantee the deterministic dataset between trainning and evaluation. 
+> **⚠️Note:** The dataset default is splited by 7:2:1 respecting to train:val:test when running `train.py` or `val.py`. Random seeds are set to 0 to guarantee the deterministic dataset between trainning and evaluation. 
