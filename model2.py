@@ -5,7 +5,7 @@ import torch_geometric.nn as nn
 from torch_geometric.data import HeteroData
 from torch_geometric.utils import degree
 import utils
-from dataloader import MyHeteroData
+from dataloader2 import MyHeteroData
 
 utils.set_seed(0)
 class BipartiteLightGCN(nn.MessagePassing):
@@ -50,12 +50,19 @@ class BipartiteLightGCN(nn.MessagePassing):
         # and any argument which was initially passed to propagate()
         return aggr_out
 
-class Classifier(torch.nn.Module):
+class Regressor(torch.nn.Module):
+    def __init__(self, min_rating=0.5, max_rating=5.0):
+        super().__init__()
+        self.min_rating = min_rating
+        self.max_rating = max_rating
+
     def forward(self, x_user: torch.Tensor, x_movie: torch.Tensor, edge_label_index: torch.Tensor) -> torch.Tensor:
         edge_feat_user = x_user[edge_label_index[1]]
         edge_feat_movie = x_movie[edge_label_index[0]]
 
-        return (edge_feat_user * edge_feat_movie).sum(dim=-1)
+        similarity = (edge_feat_user * edge_feat_movie).sum(dim=-1)
+
+        return torch.relu(similarity)
 
 class HeteroLightGCN(torch.nn.Module):
     def __init__(self, hetero_metadata=None, model_config=None):
@@ -71,9 +78,15 @@ class HeteroLightGCN(torch.nn.Module):
             })
 
         self.lightgcn = BipartiteLightGCN()
-        self.classifier = Classifier()
+        self.regressor = Regressor(min_rating=model_config['rating_range'][0], 
+                                   max_rating=model_config['rating_range'][1])
+        self.reset_parameters()
 
-    def forward(self, data: HeteroData):
+    def reset_parameters(self):
+        for node_type, emb in self.embs.items():
+            torch.nn.init.normal_(emb.weight, std=0.1)
+
+    def forward(self, data: HeteroData, mode='train'):
         x_dict = {
             key: self.embs[key](data[key].node_id) 
                 for key in data.node_types if key not in self.exclude_node
@@ -104,13 +117,16 @@ class HeteroLightGCN(torch.nn.Module):
         res_dict = {}
         for key in embs_dict.keys():
             embs = torch.stack(embs_dict[key], dim=0)
-            weights = 1.0 / (torch.arange(self.model_config['num_layers'] + 1) + 1.0)
-            weights = weights.to(embs.device)
-            embs = (weights.view(-1, 1, 1) * embs).sum(dim=0)
+            # weights = 1.0 / (torch.arange(self.model_config['num_layers'] + 1) + 1.0)
+            # weights = weights.to(embs.device)
+            # embs = (weights.view(-1, 1, 1) * embs).sum(dim=0)
+            embs = torch.mean(embs, dim=0)
             res_dict[key] = embs
 
-        res = self.classifier(res_dict['user'], res_dict['movie'], data['movie', 'ratedby', 'user'].edge_label_index)
-
+        if mode == 'train':
+            res = self.regressor(res_dict['user'], res_dict['movie'], data['movie', 'ratedby', 'user'].edge_index)
+        else:
+            res = self.regressor(res_dict['user'], res_dict['movie'], data['movie', 'ratedby', 'user'].edge_label_index)
         return res, res_dict
 
 if __name__ == "__main__":
@@ -135,12 +151,16 @@ if __name__ == "__main__":
         print(f"Batch {i}: {batch}")
         print('-----------------')
         edge = batch['movie', 'ratedby', 'user']
-        movie = batch['movie']
+        # movie = batch['movie']
         user = batch['user']
+        print(user.node_id)
         print(edge.edge_index)
-        print(edge.edge_label_index)
-        print(edge.input_id)
-        print(movie.node_id.shape)
-        print(user.node_id.shape)
+        print(edge.edge_label)
+        # print(edge.input_id)
+        # print(movie.node_id.shape)
+        # print(user.node_id.shape)
         # res, res_dict = model(batch)
-        break
+        # print(res)
+        # print(edge.rating)
+        if i == 1:
+            break

@@ -12,8 +12,8 @@ train:
       T_max: *epochs
       eta_min: 0.0001
   amp: true
-
-
+  rank@k: 5
+  
 logdir: "runs"
 
 data:
@@ -31,6 +31,7 @@ data:
   test_ratio: 0.1
   batch_size: 16
   num_neighbors: [20]
+  rating_range: &rating_range [0.5, 5.0]
   weight_user_movie:
     type: sigmoid
     k: 3 # elasticity
@@ -42,4 +43,5 @@ model:
   type: "HeteroLightGCN"
   threshold: 0.5
   num_dim: 128
+  rating_range: *rating_range
   exclude_node: ['genre', 'director', 'writer', 'star']

@@ -2,10 +2,10 @@ import os
 import torch
 import argparse
 from torch.amp import autocast
-from dataloader import MyHeteroData
-from model import HeteroLightGCN
-from loss import bce
-from eval import train_eval
+from dataloader2 import MyHeteroData
+from model2 import HeteroLightGCN
+from loss import mse, rmse
+from eval2 import train_eval
 import tqdm
 import utils
 
@@ -42,7 +42,8 @@ def init(config_dir = None):
     num_train = len(os.listdir(config['logdir']))
     writer = SummaryWriter(log_dir=os.path.join(config['logdir'], f"train_{num_train}"))
     end_epoch = config['train']['epochs']
-    return config, dataset, model, optimizer, scheduler, scaler, writer, end_epoch
+    rank_k = config['train']['rank@k']
+    return config, dataset, model, optimizer, scheduler, scaler, writer, end_epoch, rank_k
 
 def init_from_checkpoint(checkpoint):
     ckpt = utils.load_checkpoint(checkpoint)
@@ -58,7 +59,9 @@ def init_from_checkpoint(checkpoint):
     end_epoch = ckpt["end_epoch"]
     train_losses = ckpt["train_losses"]
     val_losses = ckpt["val_losses"]
-    return config, dataset, model, optimizer, scheduler, scaler, writer, epoch, end_epoch, train_losses, val_losses
+    rank_k = ckpt["rank@k"]
+    return config, dataset, model, optimizer, scheduler, scaler, writer, \
+          epoch, end_epoch, train_losses, val_losses, rank_k
 
 def train_step(model, trainloader, optimizer, scheduler, scaler):
     pbar = tqdm.tqdm(enumerate(trainloader), desc="Training", total=len(trainloader),
@@ -69,9 +72,10 @@ def train_step(model, trainloader, optimizer, scheduler, scaler):
         optimizer.zero_grad()
         with autocast(device_type=device.type, enabled=scaler is not None):
             batch.to(device)
-            label = batch['movie', 'ratedby', 'user'].edge_label
+            # label = batch['movie', 'ratedby', 'user'].edge_label
+            label = batch['movie', 'ratedby', 'user'].rating
             res, res_dict = model(batch)
-            loss_items = bce(res, label)
+            loss_items = rmse(res, label)
 
             tloss = (
                 (tloss * i + loss_items) / (i + 1) if tloss is not None else loss_items
@@ -79,12 +83,12 @@ def train_step(model, trainloader, optimizer, scheduler, scaler):
 
         if scaler is not None:
             scaler.scale(loss_items).backward()
-            torch.nn.utils.clip_grad_norm_(model.parameters(), max_norm=10.0)
+            # torch.nn.utils.clip_grad_norm_(model.parameters(), max_norm=10.0)
             scaler.step(optimizer)
             scaler.update()
         else:
             loss_items.backward()
-            torch.nn.utils.clip_grad_norm_(model.parameters(), max_norm=10.0)
+            # torch.nn.utils.clip_grad_norm_(model.parameters(), max_norm=10.0)
             optimizer.step()
 
         pbar.set_postfix({
@@ -103,6 +107,7 @@ def train(args):
     scheduler = None
     scaler = None
     writer = None
+    rank_k = None
     epoch = 0
     end_epoch = 0
     train_losses = []
@@ -110,18 +115,19 @@ def train(args):
 
     if args.checkpoint is not None:
         config, dataset, model, optimizer, scheduler, scaler,\
-              writer, epoch, end_epoch, train_losses, val_losses = init_from_checkpoint(args.checkpoint)
+              writer, epoch, end_epoch, train_losses, val_losses, rank_k = init_from_checkpoint(args.checkpoint)
         
     if args.resume is False and args.checkpoint is not None:
         optimizer, scheduler, scaler = utils.create_optimizer_scheduler_scaler(config, model)
         writer = SummaryWriter(log_dir=os.path.join(config['logdir'], f"train_{len(os.listdir(config['logdir']))}"))
         epoch = 0
         end_epoch = config['train']['epochs']
+        rank_k = config['train']['rank@k']
         train_losses = []
         val_losses = []
     elif args.checkpoint is None:
-        config, dataset, model, optimizer, scheduler, scaler, writer, end_epoch = init(args.config)
-    
+        config, dataset, model, optimizer, scheduler, scaler, writer, end_epoch, rank_k = init(args.config)
+    print(model)
     if args.resume:
         if args.checkpoint is None:
             raise ValueError("Please provide a checkpoint file to resume training from.")
@@ -141,33 +147,25 @@ def train(args):
         train_loss = train_step(model, dataset.trainloader, 
                                     optimizer, scheduler, scaler)
         scheduler.step()
-        val_loss, val_acc, val_f1 = train_eval(model, dataset.valloader)
+        val_loss, f1_k, nDCG_k = train_eval(model, dataset.valloader)
         train_losses.append(train_loss.detach().cpu().numpy())
         val_losses.append(val_loss.detach().cpu().numpy())
 
         # save model
-        utils.save_checkpoint(model, optimizer, scheduler, scaler, epoch, end_epoch, train_loss,
-                                val_loss, val_acc, val_f1, last_model_path, config, 
+        utils.save_checkpoint2(model, optimizer, scheduler, scaler, epoch, end_epoch, train_loss,
+                                val_loss, rank_k, f1_k, nDCG_k, last_model_path, config, 
                                 writer.log_dir, train_losses, val_losses)
         if val_loss < best_val_loss:
             best_val_loss = val_loss
-            utils.save_checkpoint(model, optimizer, scheduler, scaler, epoch, end_epoch, train_loss,
-                                val_loss, val_acc, val_f1, best_model_path, config, 
+            utils.save_checkpoint2(model, optimizer, scheduler, scaler, epoch, end_epoch, train_loss,
+                                val_loss, rank_k, f1_k, nDCG_k, best_model_path, config, 
                                 writer.log_dir, train_losses, val_losses)
         # save loss plot 
         utils.save_loss_plot(train_losses, val_losses, loss_plot_path)
         # Log train/val metrics to TensorBoard
         writer.add_scalar('Train/Loss', train_loss, epoch)
         writer.add_scalar('Validation/Loss', val_loss, epoch)
-        writer.add_scalar('Validation/Accuracy', val_acc, epoch)
         
-        # If f1 is a dictionary, log each class's f1 score as well
-        for label, f1_class in val_f1.items():
-            writer.add_scalar(f'Validation/F1/Class_{label}', f1_class, epoch)
-        
-        # Optionally, log average F1 score
-        writer.add_scalar('Validation/F1/Average', sum(val_f1.values()) / len(val_f1), epoch)
-
         print('-'*50)
 
 if __name__ == "__main__":

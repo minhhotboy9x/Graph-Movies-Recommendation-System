@@ -52,25 +52,34 @@ class BipartiteLightGCN(MessagePassing):
         # and any argument which was initially passed to propagate()
         return aggr_out
     
-conv = BipartiteLightGCN()
+# conv = BipartiteLightGCN()
 
-edge_index = torch.tensor([[0, 1, 2, 3, 4, 5],
-                           [1, 2, 3, 4, 5, 6]])  # Cạnh thực tế
-edge_label_index = torch.tensor([[0, 1, 2],
-                                 [1, 2, 3]])
+# edge_index = torch.tensor([[0, 1, 2, 3, 4, 5],
+#                            [1, 2, 3, 4, 5, 6]])  # Cạnh thực tế
+# edge_label_index = torch.tensor([[0, 1, 2],
+#                                  [1, 2, 3]])
 
-mask = torch.ones(edge_index.size(1), dtype=bool)
-for i in range(edge_label_index.size(1)):
-    mask &= ~((edge_index[0] == edge_label_index[0, i]) & (edge_index[1] == edge_label_index[1, i]))
+# mask = torch.ones(edge_index.size(1), dtype=bool)
+# for i in range(edge_label_index.size(1)):
+#     mask &= ~((edge_index[0] == edge_label_index[0, i]) & (edge_index[1] == edge_label_index[1, i]))
 
-unique_edges = edge_index[:, mask]
+# unique_edges = edge_index[:, mask]
 
-print(edge_index.shape)
-print(edge_label_index.shape)
-print(unique_edges.shape)
-print(unique_edges)
+# print(edge_index.shape)
+# print(edge_label_index.shape)
+# print(unique_edges.shape)
+# print(unique_edges)
 # print(f'x shape: {x.shape}')
 # print(f'y shape: {y.shape}')
 # out = conv(x, y, index)
 
 # print(out)
+
+loss1 = torch.nn.BCELoss()
+loss2 = torch.nn.BCEWithLogitsLoss()
+
+target = torch.tensor([0, 1, 0], dtype=torch.float32)
+pred = torch.tensor([10, 10, 10], dtype=torch.float32)
+
+print(loss1(torch.sigmoid(pred), target))
+print(loss2(pred, target))
