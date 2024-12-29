@@ -60,11 +60,7 @@ class MyHeteroData():
 
         self.data["movie", "ratedby", "user"].edge_index = edge_index_user_to_movie.contiguous()
         rating = torch.from_numpy(self.ratings['rating'].values).to(torch.float)
-        # self.data["movie", "ratedby", "user"].rating = rating
-
-        min_rating = self.data_config['rating_range'][0]
-        max_rating = self.data_config['rating_range'][1]
-        self.data["movie", "ratedby", "user"].rating = utils.min_max_scale(rating, min_rating, max_rating)
+        self.data["movie", "ratedby", "user"].rating = rating
 
         # weight user movie edges
         # k = self.data_config['weight_user_movie']['k']
@@ -164,7 +160,7 @@ class MyHeteroData():
                                 self.train_data["movie", "ratedby", "user"].edge_label_index), 
             edge_label = self.train_data["movie", "ratedby", "user"].rating,
             num_neighbors = self.data_config['num_neighbors'], 
-            # transform=utils.remove_label_edges,
+            transform=utils.remove_label_edges,
         )
         self.valloader = LinkNeighborLoader(
             self.val_data,

@@ -62,7 +62,7 @@ class Regressor(torch.nn.Module):
 
         similarity = (edge_feat_user * edge_feat_movie).sum(dim=-1)
 
-        return torch.relu(similarity)
+        return torch.clamp(similarity, 0, 1) * (self.max_rating - self.min_rating) + self.min_rating
 
 class HeteroLightGCN(torch.nn.Module):
     def __init__(self, hetero_metadata=None, model_config=None):
@@ -123,11 +123,12 @@ class HeteroLightGCN(torch.nn.Module):
             embs = torch.mean(embs, dim=0)
             res_dict[key] = embs
 
+        res2 = None
         if mode == 'train':
-            res = self.regressor(res_dict['user'], res_dict['movie'], data['movie', 'ratedby', 'user'].edge_index)
-        else:
-            res = self.regressor(res_dict['user'], res_dict['movie'], data['movie', 'ratedby', 'user'].edge_label_index)
-        return res, res_dict
+            res2 = self.regressor(res_dict['user'], res_dict['movie'], data['movie', 'ratedby', 'user'].edge_index)
+        res = self.regressor(res_dict['user'], res_dict['movie'], data['movie', 'ratedby', 'user'].edge_label_index)
+        
+        return res, res2, res_dict
 
 if __name__ == "__main__":
     with open('config.yaml') as f:

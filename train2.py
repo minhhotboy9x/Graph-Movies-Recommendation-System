@@ -73,9 +73,10 @@ def train_step(model, trainloader, optimizer, scheduler, scaler):
         with autocast(device_type=device.type, enabled=scaler is not None):
             batch.to(device)
             # label = batch['movie', 'ratedby', 'user'].edge_label
-            label = batch['movie', 'ratedby', 'user'].rating
-            res, res_dict = model(batch)
-            loss_items = rmse(res, label)
+            label = batch['movie', 'ratedby', 'user'].edge_label
+            label2 = batch['movie', 'ratedby', 'user'].rating
+            res, res2, res_dict = model(batch)
+            loss_items = rmse(res, label) + rmse(res2, label2)
 
             tloss = (
                 (tloss * i + loss_items) / (i + 1) if tloss is not None else loss_items

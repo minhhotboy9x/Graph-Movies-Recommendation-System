@@ -24,7 +24,7 @@ def train_eval(model, valloader, rank_k=5):
         with torch.no_grad():
             batch.to(device)
             label = batch['movie', 'ratedby', 'user'].edge_label
-            res, res_dict = model(batch, mode='val')
+            res, res2, res_dict = model(batch, mode='val')
 
             loss_items = rmse(res, label)
             f1_k = 0
