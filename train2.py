@@ -76,25 +76,25 @@ def train_step(model, trainloader, optimizer, scheduler, scaler):
             label = batch['movie', 'ratedby', 'user'].edge_label
             label2 = batch['movie', 'ratedby', 'user'].rating
             res, res2, res_dict = model(batch)
-            loss_items = rmse(res, label) + rmse(res2, label2)
+            loss_backprop = mse(res, label) + mse(res2, label2)
+
+            loss_items = rmse(res, label).detach()
 
             tloss = (
                 (tloss * i + loss_items) / (i + 1) if tloss is not None else loss_items
             )
 
         if scaler is not None:
-            scaler.scale(loss_items).backward()
-            # torch.nn.utils.clip_grad_norm_(model.parameters(), max_norm=10.0)
+            scaler.scale(loss_backprop).backward()
             scaler.step(optimizer)
             scaler.update()
         else:
-            loss_items.backward()
-            # torch.nn.utils.clip_grad_norm_(model.parameters(), max_norm=10.0)
+            loss_backprop.backward()
             optimizer.step()
 
         pbar.set_postfix({
             f"batch": i,
-            f"train loss": tloss.item()})
+            f"train rmse loss": tloss.item()})
     
     return tloss
 
@@ -148,18 +148,23 @@ def train(args):
         train_loss = train_step(model, dataset.trainloader, 
                                     optimizer, scheduler, scaler)
         scheduler.step()
-        val_loss, f1_k, nDCG_k = train_eval(model, dataset.valloader)
+        val_loss, f1_k, precision_k, recall_k, nDCG_k = train_eval(model, 
+                                            dataset.valloader, rank_k=rank_k, 
+                                            threshold=dataset.data_config["pos_threshold"])
+        
         train_losses.append(train_loss.detach().cpu().numpy())
         val_losses.append(val_loss.detach().cpu().numpy())
 
         # save model
         utils.save_checkpoint2(model, optimizer, scheduler, scaler, epoch, end_epoch, train_loss,
-                                val_loss, rank_k, f1_k, nDCG_k, last_model_path, config, 
+                                val_loss, rank_k, f1_k, precision_k, recall_k,
+                                nDCG_k, last_model_path, config, 
                                 writer.log_dir, train_losses, val_losses)
         if val_loss < best_val_loss:
             best_val_loss = val_loss
             utils.save_checkpoint2(model, optimizer, scheduler, scaler, epoch, end_epoch, train_loss,
-                                val_loss, rank_k, f1_k, nDCG_k, best_model_path, config, 
+                                val_loss, rank_k, f1_k, precision_k, recall_k,
+                                nDCG_k, best_model_path, config, 
                                 writer.log_dir, train_losses, val_losses)
         # save loss plot 
         utils.save_loss_plot(train_losses, val_losses, loss_plot_path)

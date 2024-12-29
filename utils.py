@@ -122,7 +122,8 @@ def save_checkpoint(model, optimizer, scheduler,
 
 def save_checkpoint2(model, optimizer, scheduler, 
                     scaler, epoch, end_epoch, train_loss, 
-                    val_loss, rank_k, f1_k, nDCG_k, 
+                    val_loss, rank_k, f1_k, 
+                    precision_k, recall_k, nDCG_k, 
                     model_path, config, log_dir,
                     train_losses, val_losses):
     """
@@ -152,6 +153,8 @@ def save_checkpoint2(model, optimizer, scheduler,
         'val_loss': val_loss,                    # Giá trị validation loss
         'rank@k': rank_k,                        # Rank@k trên validation
         'val_f1@k': f1_k,                        # F1 score trên validation
+        'precision@k': precision_k,              # Precision score trên validation
+        'recall@k': recall_k,                    # Recall score trên validation
         'val_nDCG@k': nDCG_k,                    # NDCG score trên validation
         'config': config,                        # Cấu hình huấn luyện
         'log_dir': log_dir,                      # Thư mục lưu log

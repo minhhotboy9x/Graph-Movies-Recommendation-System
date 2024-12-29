@@ -127,7 +127,7 @@ class HeteroLightGCN(torch.nn.Module):
         if mode == 'train':
             res2 = self.regressor(res_dict['user'], res_dict['movie'], data['movie', 'ratedby', 'user'].edge_index)
         res = self.regressor(res_dict['user'], res_dict['movie'], data['movie', 'ratedby', 'user'].edge_label_index)
-        
+
         return res, res2, res_dict
 
 if __name__ == "__main__":
@@ -148,14 +148,14 @@ if __name__ == "__main__":
 
     print(f'Total parameters: {total_params}')
     print(f'Trainable parameters: {trainable_params}')
-    for i, batch in enumerate(data.trainloader):
+    for i, batch in enumerate(data.valloader):
         print(f"Batch {i}: {batch}")
         print('-----------------')
         edge = batch['movie', 'ratedby', 'user']
         # movie = batch['movie']
         user = batch['user']
         print(user.node_id)
-        print(edge.edge_index)
+        print(edge.edge_label_index)
         print(edge.edge_label)
         # print(edge.input_id)
         # print(movie.node_id.shape)
