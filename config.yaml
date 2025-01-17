@@ -1,5 +1,5 @@
 train:
-  epochs: &epochs 300
+  epochs: &epochs 1000
   optimizer:
     type: torch.optim.SGD
     params:
@@ -29,7 +29,7 @@ data:
   pos_threshold: 3.5
   val_ratio: 0.2
   test_ratio: 0.1
-  batch_size: 16
+  batch_size: 1024
   num_neighbors: [20]
   rating_range: &rating_range [0.5, 5.0]
   weight_user_movie:
@@ -45,3 +45,7 @@ model:
   num_dim: 128
   rating_range: *rating_range
   exclude_node: ['genre', 'director', 'writer', 'star']
+  # exclude_node:
+  # - All: [] 
+  # - Baseline: ['genre', 'director', 'writer', 'star'] 
+  # - Selected `genre` and `star`: ['director', 'writer']
