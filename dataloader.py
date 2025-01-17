@@ -71,7 +71,7 @@ class MyHeteroData():
         # print(self.data)
 
     def create_movie_genre_edges(self):
-        all_genres = set(genre for genres in self.movies['genres'] for genre in genres.split('|'))
+        all_genres = sorted(set(genre for genres in self.movies['genres'] for genre in genres.split('|')))
 
         self.data["genre"].node_id = torch.arange(len(all_genres))
         self.num_genres = self.data["genre"].num_nodes = len(all_genres)
@@ -91,7 +91,7 @@ class MyHeteroData():
     def create_movie_production_edges(self):
         cols = ['director', 'writers', 'stars']
         nodes = ['director', 'writer', 'star']
-
+        cnt = 0
         def create_edge(col_name, node_name):    
             self.production[col_name] = self.production[col_name].apply(ast.literal_eval)
             exploded = self.production.explode(col_name)
@@ -114,9 +114,10 @@ class MyHeteroData():
             setattr(self, f'num_{node_name}', len(le.classes_))
             self.data[node_name].num_nodes = len(le.classes_)
             # print(node_name, self.data[node_name].num_nodes)
-            self.data[node_name, 'in', 'movie'].edge_index = torch.from_numpy(edges_array.T).contiguous()
+            self.data[node_name, f'in{cnt}', 'movie'].edge_index = torch.from_numpy(edges_array.T).contiguous()
 
         for col, node in zip(cols, nodes):
+            cnt += 1
             create_edge(col, node)
 
 

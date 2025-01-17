@@ -70,7 +70,7 @@ class MyHeteroData():
         # print(self.data)
 
     def create_movie_genre_edges(self):
-        all_genres = set(genre for genres in self.movies['genres'] for genre in genres.split('|'))
+        all_genres = sorted(set(genre for genres in self.movies['genres'] for genre in genres.split('|')))
 
         self.data["genre"].node_id = torch.arange(len(all_genres))
         self.num_genres = self.data["genre"].num_nodes = len(all_genres)
@@ -90,7 +90,7 @@ class MyHeteroData():
     def create_movie_production_edges(self):
         cols = ['director', 'writers', 'stars']
         nodes = ['director', 'writer', 'star']
-
+        cnt = 0
         def create_edge(col_name, node_name):    
             self.production[col_name] = self.production[col_name].apply(ast.literal_eval)
             exploded = self.production.explode(col_name)
@@ -113,9 +113,10 @@ class MyHeteroData():
             setattr(self, f'num_{node_name}', len(le.classes_))
             self.data[node_name].num_nodes = len(le.classes_)
             # print(node_name, self.data[node_name].num_nodes)
-            self.data[node_name, 'in', 'movie'].edge_index = torch.from_numpy(edges_array.T).contiguous()
+            self.data[node_name, f'in{cnt}', 'movie'].edge_index = torch.from_numpy(edges_array.T).contiguous()
 
         for col, node in zip(cols, nodes):
+            cnt += 1
             create_edge(col, node)
 
 
@@ -185,22 +186,8 @@ class MyHeteroData():
         for i, batch in enumerate(self.trainloader):
             print('-----------------')
             print(batch)
-            # print(edge.weight)
-            # print(edge.rating)
-            # print(getattr(batch['stars', 'in', 'movie'], 'weight', None))
-            # print(edge)
-            edge = batch["movie", "ratedby", "user"]
-            # print(edge)
-            # edge_index = edge.edge_index  # Lấy edge_index
-            # edge_label_index = edge.edge_label_index  # Lấy edge_label_index
-
-            # # Chuyển edge_index và edge_label_index sang dạng set để so sánh
-            # edge_index_set = set(map(tuple, edge_index.t().tolist()))
-            # edge_label_set = set(map(tuple, edge_label_index.t().tolist()))
-
-            # common_edges = edge_label_set.intersection(edge_index_set)
-            # print(f"Number of common edges: {len(common_edges)}")
-            # print(f"Common edges: {common_edges}")
+            genre_index = batch['genre'].node_id
+            print(genre_index)
             if i == 0:  
                 break  
 

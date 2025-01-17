@@ -28,7 +28,6 @@ def train_eval(model, valloader, rank_k=5, threshold=4.0):
             edge_label_index = batch['movie', 'ratedby', 'user'].edge_label_index
             user_index = batch['user'].node_id
             user_label_index = user_index[edge_label_index[1]]
-
             res, res2, res_dict = model(batch, mode='val')
             loss_items = rmse(res, label)
 
