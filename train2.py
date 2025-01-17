@@ -4,7 +4,7 @@ import argparse
 from torch.amp import autocast
 from dataloader2 import MyHeteroData
 from model2 import HeteroLightGCN
-from loss import mse, rmse
+from loss import mse, rmse, calculate_bpr_loss
 from eval2 import train_eval
 import tqdm
 import utils
@@ -63,7 +63,7 @@ def init_from_checkpoint(checkpoint):
     return config, dataset, model, optimizer, scheduler, scaler, writer, \
           epoch, end_epoch, train_losses, val_losses, rank_k
 
-def train_step(model, trainloader, optimizer, scheduler, scaler):
+def train_step(model, trainloader, optimizer, scheduler, scaler, threshold=4.0):
     pbar = tqdm.tqdm(enumerate(trainloader), desc="Training", total=len(trainloader),
                      bar_format='{l_bar}{bar:10}{r_bar}{bar:-10b}')
     tloss = None # total loss
@@ -72,12 +72,20 @@ def train_step(model, trainloader, optimizer, scheduler, scaler):
         optimizer.zero_grad()
         with autocast(device_type=device.type, enabled=scaler is not None):
             batch.to(device)
-            # label = batch['movie', 'ratedby', 'user'].edge_label
+            edge_index = batch['movie', 'ratedby', 'user'].edge_index
+            edge_label_index = batch['movie', 'ratedby', 'user'].edge_label_index
             label = batch['movie', 'ratedby', 'user'].edge_label
             label2 = batch['movie', 'ratedby', 'user'].rating
             res, res2, res_dict = model(batch)
-            loss_backprop = mse(res, label) + mse(res2, label2)
 
+            bpr_loss = calculate_bpr_loss(
+                torch.concat([edge_index, edge_label_index], dim=-1), 
+                torch.concat([label, label2], dim=-1),
+                torch.concat([res, res2], dim=-1), 
+                threshold=threshold)
+            
+            loss_backprop = mse(res, label) + mse(res2, label2) + bpr_loss
+            
             loss_items = rmse(res, label).detach()
 
             tloss = (
@@ -146,7 +154,8 @@ def train(args):
         
         print(f"Epoch {epoch+1}/{end_epoch}")
         train_loss = train_step(model, dataset.trainloader, 
-                                    optimizer, scheduler, scaler)
+                                    optimizer, scheduler, scaler,
+                                    threshold=dataset.data_config["pos_threshold"])
         scheduler.step()
         val_loss, f1_k, precision_k, recall_k, nDCG_k = train_eval(model, 
                                             dataset.valloader, rank_k=rank_k, 
