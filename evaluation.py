@@ -40,7 +40,9 @@ def train_eval(model, val_loader, rank_k=5, threshold=4.0):
             f1_k_val.add_batch(user_label_index, label, res)
             nDCG_k_val.add_batch(user_label_index, label, res)
 
-            t_rmse_loss = (t_rmse_loss * i + rmse_loss) / (i + 1) if t_rmse_loss is not None else rmse_loss
+            t_rmse_loss = (
+                (t_rmse_loss * i + rmse_loss) / (i + 1) if t_rmse_loss is not None else rmse_loss
+            )
             pbar.set_postfix({"RMSE loss": t_rmse_loss.item()})
     pbar.close()
 

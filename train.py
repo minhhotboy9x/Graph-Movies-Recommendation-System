@@ -97,24 +97,32 @@ def train_step(model, trainloader, optimizer, scheduler, scaler, threshold=4.0):
             batch.to(device)
             edge_index = batch["movie", "ratedby", "user"].edge_index
             edge_label_index = batch["movie", "ratedby", "user"].edge_label_index
-            label = batch["movie", "ratedby", "user"].edge_label
-            label2 = batch["movie", "ratedby", "user"].rating
-            res, res2, res_dict = model(batch)
+            edge_label = batch["movie", "ratedby", "user"].edge_label
+            message_passing_label = batch["movie", "ratedby", "user"].rating
+            edge_pred, message_passing_pred, res_dict = model(batch)
 
             bpr_loss = calculate_bpr_loss(
                 torch.concat([edge_index, edge_label_index], dim=-1),
-                torch.concat([label, label2], dim=-1),
-                torch.concat([res, res2], dim=-1),
+                torch.concat([edge_label, message_passing_label], dim=-1),
+                torch.concat([edge_pred, message_passing_pred], dim=-1),
                 threshold=threshold,
             )
 
-            loss_backprop = mse(res, label) + mse(res2, label2) + bpr_loss
+            loss_backprop = (
+                mse(edge_pred, edge_label)
+                + mse(message_passing_pred, message_passing_pred)
+                + bpr_loss
+            )
 
-            rmse_loss = rmse(res, label).detach()
+            rmse_loss = rmse(edge_pred, edge_label).detach()
 
-            t_rmse_loss = (t_rmse_loss * i + rmse_loss) / (i + 1) if t_rmse_loss is not None else rmse_loss
+            t_rmse_loss = (
+                (t_rmse_loss * i + rmse_loss) / (i + 1) if t_rmse_loss is not None else rmse_loss
+            )
 
-            t_bpr_loss = (t_bpr_loss * i + bpr_loss) / (i + 1) if t_bpr_loss is not None else bpr_loss
+            t_bpr_loss = (
+                (t_bpr_loss * i + bpr_loss) / (i + 1) if t_bpr_loss is not None else bpr_loss
+            )
 
         if scaler is not None:
             scaler.scale(loss_backprop).backward()
@@ -125,11 +133,7 @@ def train_step(model, trainloader, optimizer, scheduler, scaler, threshold=4.0):
             optimizer.step()
 
         pbar.set_postfix(
-            {
-                f"Batch": i,
-                f"RMSE loss": t_rmse_loss.item(),
-                f"BPR loss": t_bpr_loss.item()
-            }
+            {f"Batch": i, f"RMSE loss": t_rmse_loss.item(), f"BPR loss": t_bpr_loss.item()}
         )
 
     return t_rmse_loss, t_bpr_loss
