@@ -124,7 +124,7 @@ def train_step(model, trainloader, optimizer, scheduler, scaler, threshold=4.0):
         pbar.set_postfix(
             {
                 f"Batch": i,
-                f"Total loss": tloss.item()
+                f"Total loss (pred + messpassing + bpr)": tloss.item()
             }
         )
 
