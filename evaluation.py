@@ -26,7 +26,7 @@ def train_eval(model, val_loader, rank_k=5, threshold=4.0):
         bar_format="{l_bar}{bar:10}{r_bar}{bar:-10b}",
         colour="red",
     )
-    tloss = None
+    t_rmse_loss = None
     for i, batch in pbar:
         with torch.no_grad():
             batch.to(device)
@@ -35,25 +35,25 @@ def train_eval(model, val_loader, rank_k=5, threshold=4.0):
             user_index = batch["user"].node_id
             user_label_index = user_index[edge_label_index[1]]
             res, res2, res_dict = model(batch, mode="val")
-            loss_items = rmse(res, label)
+            rmse_loss = rmse(res, label)
 
             f1_k_val.add_batch(user_label_index, label, res)
             nDCG_k_val.add_batch(user_label_index, label, res)
 
-            tloss = (tloss * i + loss_items) / (i + 1) if tloss is not None else loss_items
-            pbar.set_postfix({"loss": tloss.item()})
+            t_rmse_loss = (t_rmse_loss * i + rmse_loss) / (i + 1) if t_rmse_loss is not None else rmse_loss
+            pbar.set_postfix({"RMSE loss": t_rmse_loss.item()})
     pbar.close()
 
     f1_k, precision_k, recall_k = f1_k_val.compute_f1_at_k(rank_k, threshold)
     nDCG_k = nDCG_k_val.compute_ndcg_at_k(rank_k)
 
     print(f"Validation Results:")
-    print(f"- RMSE Loss: {tloss.item():.4f}")
+    print(f"- RMSE Loss: {t_rmse_loss.item():.4f}")
     print(f"- F1@{rank_k}: {f1_k:.4f}")
     print(f"- Precision@{rank_k}: {precision_k:.4f}")
     print(f"- Recall@{rank_k}: {recall_k:.4f}")
     print(f"- nDCG@{rank_k}: {nDCG_k:.4f}")
-    return tloss, f1_k, precision_k, recall_k, nDCG_k
+    return t_rmse_loss, f1_k, precision_k, recall_k, nDCG_k
 
 
 def load_myheterodata(data_config):

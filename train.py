@@ -88,7 +88,8 @@ def train_step(model, trainloader, optimizer, scheduler, scaler, threshold=4.0):
         bar_format="{l_bar}{bar:10}{r_bar}{bar:-10b}",
         colour="green",
     )
-    tloss = None  # total loss
+    t_rmse_loss = None  # total loss
+    t_bpr_loss = None  # total loss
     for i, batch in pbar:
         # print(f"Batch {i}: {batch['movie', 'ratedby', 'user'].edge_label}")
         optimizer.zero_grad()
@@ -109,9 +110,11 @@ def train_step(model, trainloader, optimizer, scheduler, scaler, threshold=4.0):
 
             loss_backprop = mse(res, label) + mse(res2, label2) + bpr_loss
 
-            loss_items = rmse(res, label).detach()
+            rmse_loss = rmse(res, label).detach()
 
-            tloss = (tloss * i + loss_items) / (i + 1) if tloss is not None else loss_items
+            t_rmse_loss = (t_rmse_loss * i + rmse_loss) / (i + 1) if t_rmse_loss is not None else rmse_loss
+
+            t_bpr_loss = (t_bpr_loss * i + bpr_loss) / (i + 1) if t_bpr_loss is not None else bpr_loss
 
         if scaler is not None:
             scaler.scale(loss_backprop).backward()
@@ -124,11 +127,12 @@ def train_step(model, trainloader, optimizer, scheduler, scaler, threshold=4.0):
         pbar.set_postfix(
             {
                 f"Batch": i,
-                f"Total loss (pred + messpassing + bpr)": tloss.item()
+                f"RMSE loss": t_rmse_loss.item(),
+                f"BPR loss": t_bpr_loss.item()
             }
         )
 
-    return tloss
+    return t_rmse_loss, t_bpr_loss
 
 
 def train(args):
@@ -193,7 +197,7 @@ def train(args):
     for epoch in range(start_epoch, end_epoch):
 
         print(f"Epoch {epoch+1}/{end_epoch}")
-        train_loss = train_step(
+        t_rmse_loss, t_bpr_loss = train_step(
             model,
             dataset.trainloader,
             optimizer,
@@ -202,12 +206,12 @@ def train(args):
             threshold=dataset.data_config["pos_threshold"],
         )
         scheduler.step()
-        val_loss, f1_k, precision_k, recall_k, nDCG_k = train_eval(
+        val_rmse_loss, f1_k, precision_k, recall_k, nDCG_k = train_eval(
             model, dataset.valloader, rank_k=rank_k, threshold=dataset.data_config["pos_threshold"]
         )
 
-        train_losses.append(train_loss.detach().cpu().numpy())
-        val_losses.append(val_loss.detach().cpu().numpy())
+        train_losses.append(t_rmse_loss.detach().cpu().numpy())
+        val_losses.append(val_rmse_loss.detach().cpu().numpy())
 
         # save model
         utils.save_checkpoint2(
@@ -217,8 +221,8 @@ def train(args):
             scaler,
             epoch,
             end_epoch,
-            train_loss,
-            val_loss,
+            t_rmse_loss,
+            val_rmse_loss,
             rank_k,
             f1_k,
             precision_k,
@@ -230,8 +234,8 @@ def train(args):
             train_losses,
             val_losses,
         )
-        if val_loss < best_val_loss:
-            best_val_loss = val_loss
+        if val_rmse_loss < best_val_loss:
+            best_val_loss = val_rmse_loss
             utils.save_checkpoint2(
                 model,
                 optimizer,
@@ -239,8 +243,8 @@ def train(args):
                 scaler,
                 epoch,
                 end_epoch,
-                train_loss,
-                val_loss,
+                t_rmse_loss,
+                val_rmse_loss,
                 rank_k,
                 f1_k,
                 precision_k,
@@ -255,8 +259,9 @@ def train(args):
         # save loss plot
         utils.save_loss_plot(train_losses, val_losses, loss_plot_path)
         # Log train/val metrics to TensorBoard
-        writer.add_scalar("Train/Loss", train_loss, epoch)
-        writer.add_scalar("Validation/Loss", val_loss, epoch)
+        writer.add_scalar("Train/RMSE loss", t_rmse_loss, epoch)
+        writer.add_scalar("Train/BPR loss", t_bpr_loss, epoch)
+        writer.add_scalar("Validation/Loss", val_rmse_loss, epoch)
 
         print("-" * 50)
 
