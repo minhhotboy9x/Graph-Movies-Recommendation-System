@@ -10,6 +10,14 @@ import yaml
 
 # Load a YAML configuration file
 def load_config(path):
+    """
+    Tải cấu hình từ tệp YAML.
+    Tham số:
+    path (str): Đường dẫn tới tệp YAML chứa cấu hình.
+    Trả về:
+    dict: Cấu hình được tải từ tệp YAML.
+    """
+
     with open(path) as f:
         config_yaml = yaml.safe_load(f)
     return config_yaml
@@ -17,6 +25,7 @@ def load_config(path):
 
 # Import an object from a string path
 def import_object(path):
+    # Nhập một đối tượng từ một đường dẫn chuỗi
     module_path, obj_name = path.rsplit(".", 1)
     module = importlib.import_module(module_path)
     return getattr(module, obj_name)
@@ -24,6 +33,7 @@ def import_object(path):
 
 # Get the optimizer, scheduler, and scaler
 def create_optimizer_scheduler_scaler(config_yaml, model):
+    # Tạo optimizer, scheduler, và scaler từ cấu hình
     training_config = config_yaml["train"]
     # Optimizer
     optimizer_class = import_object(training_config["optimizer"]["type"])
@@ -295,7 +305,11 @@ def min_max_scale(x: torch.Tensor, min_val: float, max_val: float) -> torch.Tens
 
 
 if __name__ == "__main__":
-    ckpt = load_checkpoint("runs/train_4/best.pt")
+    from pathlib import Path
+
+    # get last checkpoint dir from runs/
+    ckpt_path = Path("runs").rglob("best.pt")
+    ckpt = load_checkpoint(ckpt_path)
     model = ckpt["model"]
     optimizer = ckpt["optimizer"]
     scheduler = ckpt["scheduler"]

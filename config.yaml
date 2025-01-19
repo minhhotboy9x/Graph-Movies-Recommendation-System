@@ -44,7 +44,7 @@ model:
   threshold: 0.5
   num_dim: 128
   rating_range: *rating_range
-  exclude_node: ['director', 'writer']
+  exclude_node: ['genre', 'director', 'writer', 'star']  
   # exclude_node:
   # - All: [] 
   # - Baseline: ['genre', 'director', 'writer', 'star'] 

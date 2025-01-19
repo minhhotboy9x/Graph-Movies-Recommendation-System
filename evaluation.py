@@ -24,7 +24,6 @@ def train_eval(model, val_loader, rank_k=5, threshold=4.0):
         desc="Validation",
         total=len(val_loader),
         bar_format="{l_bar}{bar:10}{r_bar}{bar:-10b}",
-        colour="red",
     )
     t_rmse_loss = None
     for i, batch in pbar:
