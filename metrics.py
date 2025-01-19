@@ -194,8 +194,8 @@ class NDCG_K:
         return torch.sum(gains / discounts)
 
     def ndcg_at_k(self, label, pred, k):
-        true_dcg = self.dcg_at_k(label, label, k)
-        pred_dcg = self.dcg_at_k(label, pred, k)
+        true_dcg = self.dcg_at_k(label, label, k)  # Ideal ratings
+        pred_dcg = self.dcg_at_k(label, pred, k)  # sorted predicted ratings
         return pred_dcg / true_dcg
 
     def compute_ndcg_at_k(self, k=5):

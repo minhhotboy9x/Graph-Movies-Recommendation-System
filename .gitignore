@@ -177,3 +177,5 @@ cython_debug/
 # user defined
 dataset/*
 runs/*
+!dataset/movielens_1m_summary.csv
+!*.gitkeep
