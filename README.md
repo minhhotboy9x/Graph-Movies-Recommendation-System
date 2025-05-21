@@ -1,4 +1,4 @@
-# IT4868E-Movies-Recommendation-System
+# Graph-Movies-Recommendation-System
 
 Capstone project
 
