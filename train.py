@@ -165,12 +165,12 @@ def train_step(model, trainloader, optimizer, scheduler, scaler, threshold=4.0):
             message_passing_label = batch["movie", "ratedby", "user"].rating
             edge_pred, message_passing_pred, res_dict = model(batch)
 
-            bpr_loss = calculate_bpr_loss(
-                torch.concat([edge_index, edge_label_index], dim=-1),
-                torch.concat([edge_label, message_passing_label], dim=-1),
-                torch.concat([edge_pred, message_passing_pred], dim=-1),
-                threshold=threshold,
-            )
+            # bpr_loss = calculate_bpr_loss(
+            #     torch.concat([edge_index, edge_label_index], dim=-1),
+            #     torch.concat([edge_label, message_passing_label], dim=-1),
+            #     torch.concat([edge_pred, message_passing_pred], dim=-1),
+            #     threshold=threshold,
+            # )
 
             # NOTE: Uncomment this to use combined losses
             # Including MSE of edge prediction and message passing prediction, BPR loss
@@ -185,12 +185,11 @@ def train_step(model, trainloader, optimizer, scheduler, scaler, threshold=4.0):
             # )
 
             ## Uncomment this to use only RMSE loss
-            # loss_backprop = mse(edge_pred, edge_label) + mse(
-            #     message_passing_pred, message_passing_pred
-            # )
+            loss_backprop = mse(edge_pred, edge_label) + \
+                            0.1*mse(message_passing_pred, message_passing_label)
 
             ## Uncomment this to use only BPR loss
-            loss_backprop = bpr_loss
+            # loss_backprop = bpr_loss
 
             rmse_loss = rmse(edge_pred, edge_label).detach()
 
@@ -198,9 +197,9 @@ def train_step(model, trainloader, optimizer, scheduler, scaler, threshold=4.0):
                 (t_rmse_loss * i + rmse_loss) / (i + 1) if t_rmse_loss is not None else rmse_loss
             )
 
-            t_bpr_loss = (
-                (t_bpr_loss * i + bpr_loss) / (i + 1) if t_bpr_loss is not None else bpr_loss
-            )
+            # t_bpr_loss = (
+            #     (t_bpr_loss * i + bpr_loss) / (i + 1) if t_bpr_loss is not None else bpr_loss
+            # )
 
         if scaler is not None:
             scaler.scale(loss_backprop).backward()
@@ -214,7 +213,7 @@ def train_step(model, trainloader, optimizer, scheduler, scaler, threshold=4.0):
             {
                 f"Batch": i,
                 f"RMSE loss": f"{t_rmse_loss.item():.5f}",
-                f"BPR loss": f"{t_bpr_loss.item():.5f}",
+                # f"BPR loss": f"{t_bpr_loss.item():.5f}",
             }
         )
 
@@ -378,7 +377,7 @@ def train(args):
         utils.save_loss_plot(train_losses, val_losses, loss_plot_path)
         # Log train/val metrics to TensorBoard
         writer.add_scalar("Train/RMSE loss", t_rmse_loss, epoch)
-        writer.add_scalar("Train/BPR loss", t_bpr_loss, epoch)
+        # writer.add_scalar("Train/BPR loss", t_bpr_loss, epoch)
         writer.add_scalar("Validation/Loss", val_rmse_loss, epoch)
 
         print("-" * 50)

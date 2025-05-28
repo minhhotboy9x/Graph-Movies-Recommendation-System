@@ -236,11 +236,22 @@ def save_loss_plot(train_losses, val_losses, file_path):
         linestyle="-",
     )
     plt.xlabel("Epoch")
-    plt.xticks(range(len(train_losses)))
+
+    # Hiển thị xticks cách nhau một khoảng step (tự động hoặc cố định)
+    num_epochs = len(train_losses)
+    if num_epochs > 20:
+        step = num_epochs // 10  # Hiển thị 10 ticks hoặc ít hơn
+        xticks = list(range(0, num_epochs, step))
+        if xticks[-1] != num_epochs - 1:
+            xticks.append(num_epochs - 1)  # Đảm bảo tick cuối cùng
+    else:
+        xticks = list(range(num_epochs))
+    plt.xticks(xticks)
+    
     plt.ylabel("Loss")
     plt.title("Training and Validation Loss over Epochs")
     plt.legend()
-    plt.grid(True)
+    # plt.grid(True)
 
     plt.savefig(file_path)
     plt.close()
