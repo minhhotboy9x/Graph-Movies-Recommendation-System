@@ -172,7 +172,7 @@ class MyHeteroData:
             ),
             edge_label=self.train_data["movie", "ratedby", "user"].rating,
             num_neighbors=self.data_config["num_neighbors"],
-            transform=utils.remove_label_edges,
+            transform=T.Compose([utils.remove_label_edges, T.ToUndirected()]),
         )
         self.valloader = LinkNeighborLoader(
             self.val_data,
@@ -184,6 +184,7 @@ class MyHeteroData:
             ),
             edge_label=self.val_data["movie", "ratedby", "user"].rating,
             num_neighbors=self.data_config["num_neighbors"],
+            transform=T.Compose([T.ToUndirected()]),
         )
         self.testloader = LinkNeighborLoader(
             self.test_data,
@@ -195,14 +196,18 @@ class MyHeteroData:
             ),
             edge_label=self.test_data["movie", "ratedby", "user"].rating,
             num_neighbors=self.data_config["num_neighbors"],
+            transform=T.Compose([T.ToUndirected()]),
         )
 
     def load_batches(self):
         for i, batch in enumerate(self.trainloader):
             print("-----------------")
             print(batch)
-            genre_index = batch["genre"].node_id
-            print(genre_index)
+            # print(batch["movie", "ratedby", "user"].edge_index)
+            # print(batch["user", "rev_ratedby", "movie"].edge_index)
+            # print(batch["movie", "ratedby", "user"].edge_label_index)
+            # genre_index = batch["genre"].node_id
+            # print(genre_index)
             if i == 0:
                 break
 
@@ -229,4 +234,4 @@ if __name__ == "__main__":
     data.split_data()
     data.create_dataloader()
     data.load_batches()
-    # data.get_metadata()
+    print(data.get_metadata())

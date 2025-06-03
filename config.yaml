@@ -29,7 +29,7 @@ data:
   pos_threshold: 3.5
   val_ratio: 0.2
   test_ratio: 0.1
-  batch_size: 1024
+  batch_size: 16
   num_neighbors: [20]
   rating_range: &rating_range [0.5, 5.0]
   weight_user_movie:
