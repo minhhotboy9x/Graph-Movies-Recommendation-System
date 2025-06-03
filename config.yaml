@@ -38,14 +38,25 @@ data:
     c: 3.5 # center
   
 
+# model:
+#   num_layers: 2
+#   type: "HeteroLightGCN"
+#   threshold: 0.5
+#   num_dim: 128
+#   rating_range: *rating_range
+#   exclude_node: ['genre', 'director', 'writer', 'star']  
+
 model:
   num_layers: 2
-  type: "HeteroLightGCN"
+  type: "HeteroModel"
+  gnn:
+    type: "torch_geometric.nn.SAGEConv"
+    params:
+      in_channels: [128, 128]
+      out_channels: 128
   threshold: 0.5
   num_dim: 128
   rating_range: *rating_range
+  # exclude_node: ['director', 'writer', 'star']  
   exclude_node: ['genre', 'director', 'writer', 'star']  
-  # exclude_node:
-  # - All: [] 
-  # - Baseline: ['genre', 'director', 'writer', 'star'] 
-  # - Selected `genre` and `star`: ['director', 'writer']
+  

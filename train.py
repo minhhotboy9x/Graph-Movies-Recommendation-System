@@ -8,7 +8,7 @@ import utils
 from dataloader import MyHeteroData
 from evaluation import train_eval
 from loss import calculate_bpr_loss, mse, rmse
-from model import HeteroLightGCN
+from model import HeteroModel
 from torch.amp import autocast
 from torch.utils.tensorboard import SummaryWriter
 from tqdm import tqdm
@@ -66,7 +66,10 @@ def init(config_dir=None):
     dataset = load_myheterodata(config["data"])
 
     # load model
-    model = HeteroLightGCN(dataset.get_metadata(), config["model"])
+    model_config = config["model"]
+    gnn_conv_class = utils.import_object(model_config["gnn"]["type"])
+    gnn_conv_layer = gnn_conv_class(**model_config["gnn"]["params"])
+    model = HeteroModel(gnn_conv_layer, dataset.get_metadata(), config["model"])
 
     optimizer, scheduler, scaler = utils.create_optimizer_scheduler_scaler(config, model)
 
