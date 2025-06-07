@@ -205,7 +205,6 @@ class HeteroModel(torch.nn.Module):
                 }
             ))
 
-
         self.regressor = Regressor(
             min_rating=model_config["rating_range"][0], max_rating=model_config["rating_range"][1]
         )
@@ -239,9 +238,9 @@ class HeteroModel(torch.nn.Module):
                 # print(key)
                 # print(x.shape)
                 # print(edge_index[0])
-                y = self.gnn_layers[i][str(key)]((x, y), edge_index=edge_index)
-                
-                tmp_dict[key[2]] = tmp_dict[key[2]] + y
+                msg = self.gnn_layers[i][str(key)]((x, y), edge_index=edge_index)
+
+                tmp_dict[key[2]] = tmp_dict[key[2]] + msg
 
             for key in x_dict.keys():
                 embs_dict[key].append(tmp_dict[key])
