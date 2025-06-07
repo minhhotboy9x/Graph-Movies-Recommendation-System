@@ -1,5 +1,5 @@
 train:
-  epochs: &epochs 1000
+  epochs: &epochs 500
   optimizer:
     type: torch.optim.SGD
     params:
@@ -29,7 +29,7 @@ data:
   pos_threshold: 3.5
   val_ratio: 0.2
   test_ratio: 0.1
-  batch_size: 16
+  batch_size: 1024
   num_neighbors: [20]
   rating_range: &rating_range [0.5, 5.0]
   weight_user_movie:
@@ -54,6 +54,8 @@ model:
     params:
       in_channels: [128, 128]
       out_channels: 128
+      normalize: True
+      root_weight: false
   threshold: 0.5
   num_dim: 128
   rating_range: *rating_range
